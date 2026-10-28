@@ -29,6 +29,10 @@ export function FormEntrar() {
         {enviando ? "Entrando..." : "Entrar"}
       </button>
       <p className="muted pequeno">Não tem a chave? Peça para a administração da 99.</p>
+      <p className="muted pequeno">
+        Dica: depois de entrar, use o menu do navegador → <strong>Adicionar à tela inicial</strong>. O app fica como ícone no celular e
+        você não precisa digitar a chave de novo.
+      </p>
     </form>
   );
 }
