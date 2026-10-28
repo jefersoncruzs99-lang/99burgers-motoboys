@@ -66,6 +66,7 @@ export interface RegistroDia {
   faixa: number;
   valor_diaria: number;
   valor_entregas: number;
+  qtd_entregas: number;
   origem_chegada: "motoboy" | "gestor";
   fora_da_escala: boolean;
   entregas_lancadas_por: string | null;
@@ -83,11 +84,97 @@ export interface Dia {
     setor: string;
     inicio: string;
     fim: string;
-    pessoas: { motoboy_id: string; nome: string; escalado: boolean; registro: RegistroDia | null }[];
-    ocorrencias: { id: string; tipo: string; descricao: string | null; motoboy: string | null; por: string; em: string }[];
+    pessoas: { motoboy_id: string; nome: string; foto_url: string | null; escalado: boolean; registro: RegistroDia | null }[];
+    ocorrencias: {
+      id: string;
+      tipo: string;
+      tipo_nome: string;
+      pontos: number;
+      status: StatusOcorrencia;
+      descricao: string | null;
+      ciente_em: string | null;
+      contestacao: string | null;
+      motoboy: string | null;
+      por: string;
+      em: string;
+    }[];
   }[];
   motoboys: { id: string; nome: string }[];
+  tipos_ocorrencia: TipoOcorrencia[];
 }
+
+export type StatusOcorrencia = "valida" | "contestada" | "anulada";
+
+export interface TipoOcorrencia {
+  codigo: string;
+  nome: string;
+  pontos: number;
+  grupo: "negativa" | "positiva" | "registro";
+}
+
+export interface ItemRanking {
+  pos: number;
+  motoboy_id: string;
+  nome: string;
+  foto_url: string | null;
+  entregas: number;
+  pontos: number;
+  turnos?: number;
+  pontos_ocorrencias?: number;
+}
+
+export interface DadosRanking {
+  periodo: "mes" | "ano" | "mes_anterior" | "ano_anterior";
+  inicio: string;
+  fim: string;
+  ranking: ItemRanking[];
+  campeao_anterior: ItemRanking | null;
+  inicio_anterior: string;
+  fim_anterior: string;
+  eu?: string;
+  participa?: boolean;
+}
+
+export interface ExtraMotoboy {
+  foto_url: string | null;
+  participa: boolean;
+  prazo_contestacao_dias: number;
+  regulamento: { id: string; versao: number; titulo: string; texto: string; aceito_em: string | null } | null;
+  mes: { pos?: number; pontos?: number; entregas?: number; turnos?: number; pontos_ocorrencias?: number };
+  ocorrencias: {
+    id: string;
+    data: string;
+    turno: Turno;
+    tipo: string;
+    tipo_nome: string;
+    pontos: number;
+    descricao: string | null;
+    status: StatusOcorrencia;
+    ciente_em: string | null;
+    contestacao: string | null;
+    decisao: string | null;
+    criado_em: string;
+    pode_contestar: boolean;
+  }[];
+  incentivos: { id: string; nome: string; descricao: string | null; tipo: TipoIncentivo; valor: number; atual: number | null; meta: number | null; texto: string }[];
+  ganhos: { descricao: string; valor: number; criado_em: string; cancelado: boolean }[];
+}
+
+export type TipoIncentivo = "a_cada_entregas" | "meta_entregas_mes" | "mes_sem_negativas" | "top_mes" | "top_ano";
+
+export const ROTULO_TIPO_INCENTIVO: Record<TipoIncentivo, string> = {
+  a_cada_entregas: "A cada X entregas",
+  meta_entregas_mes: "Meta de entregas no mês",
+  mes_sem_negativas: "Mês sem intercorrência negativa",
+  top_mes: "Posição no ranking do mês",
+  top_ano: "Posição no ranking do ano",
+};
+
+export const ROTULO_STATUS_OCORRENCIA: Record<StatusOcorrencia, string> = {
+  valida: "Válida",
+  contestada: "Contestada (em análise)",
+  anulada: "Anulada",
+};
 
 export interface Motoboy {
   id: string;
@@ -99,6 +186,7 @@ export interface Motoboy {
   chave_hash: string | null;
   observacao: string | null;
   ativo: boolean;
+  foto_url: string | null;
 }
 
 export const ROTULO_TURNO: Record<Turno, string> = { manha: "Manhã · Marmitaria", noite: "Noite · Hamburgueria" };

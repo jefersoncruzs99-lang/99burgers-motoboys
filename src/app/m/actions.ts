@@ -110,3 +110,44 @@ export async function cancelarTroca(fd: FormData) {
     "/m",
   );
 }
+
+export async function aceitarRegulamento(fd: FormData) {
+  await executar(
+    "/m",
+    async () => {
+      if (!marcado(fd, "aceite")) throw new Error("Marque que leu e aceita o regulamento.");
+      const { ip, ua } = await origemDoAcesso();
+      await rpcMotoboy("mb_m_aceitar_documento", {
+        p_tipo: "regulamento",
+        p_nome: texto(fd, "nome"),
+        p_cpf: texto(fd, "cpf"),
+        p_ip: ip,
+        p_ua: ua,
+      });
+    },
+    "Regulamento aceito. Bora pro topo do ranking! 🏆",
+    "/m",
+  );
+}
+
+export async function responderOcorrencia(fd: FormData) {
+  await executar(
+    "/m",
+    async () => {
+      const id = uuidOuNulo(fd, "ocorrencia_id");
+      if (!id) throw new Error("Intercorrência inválida.");
+      const contestacao = textoOuNulo(fd, "contestacao");
+      if (texto(fd, "acao") === "contestar" && !contestacao) throw new Error("Escreva sua versão para contestar.");
+      const { ip, ua } = await origemDoAcesso();
+      const r = await rpcMotoboy<string>("mb_m_ocorrencia_ciente", {
+        p_ocorrencia: id,
+        p_contestacao: texto(fd, "acao") === "contestar" ? contestacao : null,
+        p_ip: ip,
+        p_ua: ua,
+      });
+      return r === "contestada" ? "Contestação enviada. A administração vai analisar." : "Ciência registrada.";
+    },
+    undefined,
+    "/m",
+  );
+}

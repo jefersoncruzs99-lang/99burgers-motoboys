@@ -10,6 +10,8 @@ const MENU = [
   ["/admin/motoboys", "Motoboys"],
   ["/admin/pagamentos", "Pagamentos"],
   ["/admin/trocas", "Trocas"],
+  ["/admin/ranking", "🏆 Ranking"],
+  ["/admin/incentivos", "Incentivos"],
   ["/admin/config", "Configurações"],
 ] as const;
 

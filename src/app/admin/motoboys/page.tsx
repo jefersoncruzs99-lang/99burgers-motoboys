@@ -4,6 +4,8 @@ import { dataCurta, hora } from "@/lib/datas";
 import { ROTULO_FORMA, type Motoboy } from "@/lib/tipos";
 import { salvarMotoboy } from "../actions";
 import { GerarChave } from "./GerarChave";
+import { FotoMotoboy } from "./FotoMotoboy";
+import Link from "next/link";
 
 function telefoneBonito(t: string) {
   const n = t.replace(/^55/, "");
@@ -13,9 +15,10 @@ function telefoneBonito(t: string) {
 export default async function AdminMotoboys({ searchParams }: { searchParams: ParamsPagina }) {
   const sp = await searchParams;
   const { supabase } = await exigirGestor();
-  const [{ data: motoboys }, { data: contrato }, { data: assinaturas }] = await Promise.all([
+  const [{ data: motoboys }, { data: contrato }, { data: regulamento }, { data: assinaturas }] = await Promise.all([
     supabase.from("mb_motoboys").select("*").order("ativo", { ascending: false }).order("nome"),
     supabase.from("mb_documentos").select("id, versao").eq("tipo", "contrato").eq("ativo", true).maybeSingle(),
+    supabase.from("mb_documentos").select("id, versao").eq("tipo", "regulamento").eq("ativo", true).maybeSingle(),
     supabase.from("mb_assinaturas").select("motoboy_id, documento_id, assinado_em, nome_assinado, cpf_assinado, ip"),
   ]);
   const lista = (motoboys ?? []) as Motoboy[];
@@ -37,6 +40,8 @@ export default async function AdminMotoboys({ searchParams }: { searchParams: Pa
         return (
           <section key={m.id} className="cartao pilha" style={m.ativo ? undefined : { opacity: 0.6 }}>
             <div className="linha entre" style={{ flexWrap: "wrap", gap: 8 }}>
+              <div className="pessoa" style={{ alignItems: "flex-start", gap: 14 }}>
+              <FotoMotoboy id={m.id} nome={m.nome} foto={m.foto_url} />
               <div>
                 <h2 style={{ margin: 0 }}>
                   {m.nome} {!m.ativo && <span className="selo">Inativo</span>}
@@ -54,7 +59,17 @@ export default async function AdminMotoboys({ searchParams }: { searchParams: Pa
                   ) : (
                     <span className="selo ama">Contrato pendente</span>
                   )}
+                  {regulamento &&
+                    ((assinaturas ?? []).some((a) => a.motoboy_id === m.id && a.documento_id === regulamento.id) ? (
+                      <span className="selo ok">Regulamento aceito</span>
+                    ) : (
+                      <span className="selo ama">Regulamento pendente</span>
+                    ))}
+                  <Link href={`/admin/motoboys/${m.id}`} className="selo">
+                    📁 Dossiê
+                  </Link>
                 </div>
+              </div>
               </div>
               {m.ativo && <GerarChave id={m.id} nome={m.nome} telefone={m.telefone} temChave={!!m.chave_hash} />}
             </div>

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { COOKIE_ROTA, apagarAcesso, guardarAcesso, rpcRota } from "@/lib/acesso";
 import { criarSupabaseServidor } from "@/lib/supabase/server";
-import { exigir, numeroOuNulo, texto, textoOuNulo, uuidOuNulo } from "@/lib/form";
+import { exigir, inteiroOuNulo, numeroOuNulo, texto, textoOuNulo, uuidOuNulo } from "@/lib/form";
 import { executar } from "@/lib/navegar";
 
 export type EstadoEntrarRota = { erro?: string };
@@ -62,9 +62,10 @@ export async function rotaEntregas(fd: FormData) {
       const registro = uuidOuNulo(fd, "registro_id");
       const valor = numeroOuNulo(fd, "valor", "Valor das entregas");
       if (!registro || valor === null) throw new Error("Informe o valor das entregas.");
-      await rpcRota("mb_r_lancar_entregas", { p_registro: registro, p_valor: valor });
+      const qtd = inteiroOuNulo(fd, "qtd", "Quantidade de entregas") ?? 0;
+      await rpcRota("mb_r_lancar_entregas", { p_registro: registro, p_valor: valor, p_qtd: qtd });
     },
-    "Entregas lançadas.",
+    "Entregas lançadas. Os pontos do ranking já foram atualizados.",
     "/rota",
   );
 }
@@ -78,7 +79,7 @@ export async function rotaOcorrencia(fd: FormData) {
         p_turno: exigir(texto(fd, "turno"), "Turno"),
         p_motoboy: uuidOuNulo(fd, "motoboy_id"),
         p_tipo: exigir(texto(fd, "tipo"), "Tipo"),
-        p_desc: exigir(texto(fd, "descricao"), "Descrição"),
+        p_desc: textoOuNulo(fd, "descricao"),
       });
     },
     "Intercorrência registrada.",

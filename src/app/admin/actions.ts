@@ -61,9 +61,10 @@ export async function admEntregas(fd: FormData) {
     const registro = uuidOuNulo(fd, "registro_id");
     const valor = numeroOuNulo(fd, "valor", "Valor das entregas");
     if (!registro || valor === null) throw new Error("Informe o valor das entregas.");
-    const { error } = await supabase.rpc("mb_a_lancar_entregas", { p_registro: registro, p_valor: valor });
+    const qtd = inteiroOuNulo(fd, "qtd", "Quantidade de entregas") ?? 0;
+    const { error } = await supabase.rpc("mb_a_lancar_entregas", { p_registro: registro, p_valor: valor, p_qtd: qtd });
     falhou(error);
-  }, "Entregas lançadas.");
+  }, "Entregas lançadas. Os pontos do ranking já foram atualizados.");
 }
 
 export async function admCorrigir(fd: FormData) {
@@ -95,7 +96,7 @@ export async function admOcorrencia(fd: FormData) {
       turno: exigir(texto(fd, "turno"), "Turno"),
       motoboy_id: uuidOuNulo(fd, "motoboy_id"),
       tipo: exigir(texto(fd, "tipo"), "Tipo"),
-      descricao: exigir(texto(fd, "descricao"), "Descrição"),
+      descricao: textoOuNulo(fd, "descricao"),
       registrado_por: `Adm: ${nome}`,
     });
     falhou(error);
@@ -379,7 +380,8 @@ export async function salvarConfig(fd: FormData) {
 export async function novaVersaoDocumento(fd: FormData) {
   await executar("/admin/config", async () => {
     const { supabase } = await exigirGestor();
-    const tipo = texto(fd, "tipo") === "termo_diario" ? "termo_diario" : "contrato";
+    const bruto = texto(fd, "tipo");
+    const tipo = bruto === "termo_diario" || bruto === "regulamento" ? bruto : "contrato";
     const titulo = exigir(texto(fd, "titulo"), "Título");
     const textoDoc = exigir(texto(fd, "texto"), "Texto");
     const { data: atual } = await supabase
@@ -397,6 +399,148 @@ export async function novaVersaoDocumento(fd: FormData) {
     falhou(error);
     return tipo === "contrato"
       ? "Nova versão do contrato publicada. Cada motoboy vai precisar assinar de novo no app."
-      : "Nova versão do termo do dia publicada.";
+      : tipo === "regulamento"
+        ? "Nova versão do regulamento publicada. Cada motoboy vai ver o aviso para aceitar de novo."
+        : "Nova versão do termo do dia publicada.";
   });
+}
+
+// ===================== FOTO =====================
+
+export async function salvarFoto(fd: FormData): Promise<{ ok?: boolean; erro?: string }> {
+  try {
+    const { supabase } = await exigirGestor();
+    const id = uuidOuNulo(fd, "id");
+    const arquivo = fd.get("foto");
+    if (!id) return { erro: "Motoboy inválido." };
+    if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha uma foto." };
+    if (arquivo.size > 2 * 1024 * 1024) return { erro: "Foto muito grande (máx. 2 MB)." };
+    if (!["image/jpeg", "image/png", "image/webp"].includes(arquivo.type)) return { erro: "Use uma foto JPG, PNG ou WEBP." };
+    const ext = arquivo.type === "image/png" ? "png" : arquivo.type === "image/webp" ? "webp" : "jpg";
+    const caminho = `${id}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("mb-fotos").upload(caminho, arquivo, { contentType: arquivo.type, upsert: false });
+    if (error) return { erro: error.message };
+    const url = supabase.storage.from("mb-fotos").getPublicUrl(caminho).data.publicUrl;
+    const { error: e2 } = await supabase.from("mb_motoboys").update({ foto_url: url }).eq("id", id);
+    if (e2) return { erro: e2.message };
+    const { data: antigas } = await supabase.storage.from("mb-fotos").list(id);
+    const apagar = (antigas ?? []).map((o) => `${id}/${o.name}`).filter((c) => c !== caminho);
+    if (apagar.length) await supabase.storage.from("mb-fotos").remove(apagar);
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (e) {
+    unstable_rethrow(e);
+    return { erro: e instanceof Error ? e.message : "Erro inesperado." };
+  }
+}
+
+export async function removerFoto(fd: FormData) {
+  await executar("/admin/motoboys", async () => {
+    const { supabase } = await exigirGestor();
+    const id = uuidOuNulo(fd, "id");
+    if (!id) throw new Error("Motoboy inválido.");
+    const { data: antigas } = await supabase.storage.from("mb-fotos").list(id);
+    if (antigas?.length) await supabase.storage.from("mb-fotos").remove(antigas.map((o) => `${id}/${o.name}`));
+    falhou((await supabase.from("mb_motoboys").update({ foto_url: null }).eq("id", id)).error);
+  }, "Foto removida.");
+}
+
+// ===================== INTERCORRÊNCIAS / INCENTIVOS =====================
+
+export async function salvarTipoOcorrencia(fd: FormData) {
+  await executar("/admin/incentivos", async () => {
+    const { supabase } = await exigirGestor();
+    const novo = texto(fd, "novo") === "1";
+    const nome = exigir(texto(fd, "nome"), "Nome");
+    const bruto = texto(fd, "pontos").replace(",", ".");
+    const pontos = Math.round(Number(bruto || "0"));
+    if (!Number.isFinite(pontos) || pontos < -100 || pontos > 100) throw new Error("Pontos entre -100 e 100.");
+    const grupo = pontos < 0 ? "negativa" : pontos > 0 ? "positiva" : "registro";
+    if (novo) {
+      const codigo =
+        nome
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, "")
+          .slice(0, 36) || "tipo";
+      const { error } = await supabase
+        .from("mb_tipos_ocorrencia")
+        .insert({ codigo: `${codigo}_${Date.now().toString(36).slice(-3)}`, nome, pontos, grupo, ordem: grupo === "negativa" ? 150 : grupo === "positiva" ? 250 : 340 });
+      falhou(error);
+    } else {
+      const codigo = exigir(texto(fd, "codigo"), "Código");
+      const { error } = await supabase.from("mb_tipos_ocorrencia").update({ nome, pontos, grupo, ativo: marcado(fd, "ativo") }).eq("codigo", codigo);
+      falhou(error);
+    }
+  }, "Intercorrência salva. Os novos pontos valem para os próximos registros.");
+}
+
+export async function salvarIncentivo(fd: FormData) {
+  await executar("/admin/incentivos", async () => {
+    const { supabase } = await exigirGestor();
+    const id = uuidOuNulo(fd, "id");
+    const tipo = texto(fd, "tipo");
+    const tipos = ["a_cada_entregas", "meta_entregas_mes", "mes_sem_negativas", "top_mes", "top_ano"];
+    if (!tipos.includes(tipo)) throw new Error("Tipo de incentivo inválido.");
+    const porPosicao = tipo === "top_mes" || tipo === "top_ano";
+    const valor = numeroOuNulo(fd, "valor", "Valor");
+    if (!valor) throw new Error("Informe o valor do prêmio.");
+    const quantidade = porPosicao ? null : inteiroOuNulo(fd, "quantidade", "Quantidade");
+    const posicao = porPosicao ? inteiroOuNulo(fd, "posicao", "Posição") : null;
+    if (!porPosicao && !quantidade) throw new Error("Informe a quantidade.");
+    if (porPosicao && !posicao) throw new Error("Informe a posição.");
+    const dados = {
+      nome: exigir(texto(fd, "nome"), "Nome"),
+      descricao: textoOuNulo(fd, "descricao"),
+      tipo,
+      quantidade,
+      posicao,
+      valor,
+      ativo: marcado(fd, "ativo"),
+      ...(texto(fd, "inicio") ? { inicio: dataDoForm(fd, "inicio") } : {}),
+    };
+    const { error } = id ? await supabase.from("mb_incentivos").update(dados).eq("id", id) : await supabase.from("mb_incentivos").insert(dados);
+    falhou(error);
+  }, "Incentivo salvo.");
+}
+
+export async function apurarIncentivos() {
+  await executar("/admin/incentivos", async () => {
+    const { supabase } = await exigirGestor();
+    const { data, error } = await supabase.rpc("mb_a_apurar_incentivos");
+    falhou(error);
+    return Number(data) > 0 ? `${data} prêmio(s) novo(s) lançado(s) como bônus.` : "Nenhum prêmio novo para lançar agora.";
+  });
+}
+
+export async function decidirOcorrencia(fd: FormData) {
+  await executar(volta(fd, "/admin/incentivos"), async () => {
+    const { supabase, user } = await exigirGestor();
+    const id = uuidOuNulo(fd, "id");
+    if (!id) throw new Error("Intercorrência inválida.");
+    const anular = texto(fd, "decisao") === "anular";
+    const { error } = await supabase
+      .from("mb_ocorrencias")
+      .update({
+        status: anular ? "anulada" : "valida",
+        decisao: exigir(texto(fd, "justificativa"), "Justificativa da decisão"),
+        decidida_em: new Date().toISOString(),
+        decidida_por: user.id,
+      })
+      .eq("id", id);
+    falhou(error);
+    return anular ? "Intercorrência anulada: os pontos voltaram." : "Intercorrência mantida.";
+  });
+}
+
+export async function salvarPontuacao(fd: FormData) {
+  await executar("/admin/incentivos", async () => {
+    const { supabase } = await exigirGestor();
+    const pts = inteiroOuNulo(fd, "pontos_por_entrega", "Pontos por entrega") ?? 1;
+    const prazo = inteiroOuNulo(fd, "prazo_contestacao_dias", "Prazo") ?? 7;
+    const { error } = await supabase.from("mb_config").update({ pontos_por_entrega: pts, prazo_contestacao_dias: prazo }).eq("id", "padrao");
+    falhou(error);
+  }, "Regras de pontuação salvas.");
 }

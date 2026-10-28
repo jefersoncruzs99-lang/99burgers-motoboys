@@ -2,9 +2,20 @@ import Link from "next/link";
 import { Mensagens } from "@/components/Mensagens";
 import { COOKIE_MOTOBOY, lerAcesso, rpcMotoboy } from "@/lib/acesso";
 import { ROTULO_FAIXA, dataComDia, dataLonga, hora, moeda } from "@/lib/datas";
-import { ROTULO_FORMA, type PainelMotoboy, type TurnoInfo } from "@/lib/tipos";
+import { ROTULO_FORMA, ROTULO_STATUS_OCORRENCIA, type ExtraMotoboy, type PainelMotoboy, type TurnoInfo } from "@/lib/tipos";
+import { Avatar } from "@/components/Avatar";
+import { Pontos } from "@/components/Pontos";
 import { FormEntrar } from "./FormEntrar";
-import { aceitarTroca, assinarContrato, cancelarTroca, confirmarChegada, pedirTroca, sairMotoboy } from "./actions";
+import {
+  aceitarRegulamento,
+  aceitarTroca,
+  assinarContrato,
+  cancelarTroca,
+  confirmarChegada,
+  pedirTroca,
+  responderOcorrencia,
+  sairMotoboy,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +31,19 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const acesso = await lerAcesso(COOKIE_MOTOBOY);
   let p: PainelMotoboy | null = null;
+  let x: ExtraMotoboy | null = null;
   let falhou = false;
   if (acesso) {
     try {
+      // primeiro o extra (lança prêmios de incentivo que já foram conquistados), depois o painel
+      x = await rpcMotoboy<ExtraMotoboy>("mb_m_extra");
       p = await rpcMotoboy<PainelMotoboy>("mb_m_painel");
     } catch (e) {
       falhou = !(e instanceof Error && e.message === "SEM_ACESSO");
     }
   }
 
-  if (!p) {
+  if (!p || !x) {
     return (
       <main className="container pilha" style={{ maxWidth: 460, paddingTop: 40 }}>
         <Link href="/" className="muted">
@@ -55,17 +69,45 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
   const nomeTurno = (c: string) => p.turnos.find((t) => t.codigo === c)?.nome ?? c;
   const paraMim = p.trocas.filter((t) => t.pode_aceitar);
   const minhas = p.trocas.filter((t) => t.minha);
+  const novasOcorrencias = x.ocorrencias.filter((o) => !o.ciente_em && o.status === "valida");
 
   return (
     <main className="container pilha" style={{ maxWidth: 760 }}>
-      <div className="linha entre">
-        <div>
-          <span className="marca">MOTOBOYS 99</span>
-          <h1 style={{ fontSize: "1.7rem", margin: 0 }}>Olá, {p.motoboy.nome.split(" ")[0]}!</h1>
-          <p className="muted" style={{ textTransform: "capitalize", margin: 0 }}>
+      <section className="cracha">
+        <Avatar
+          nome={p.motoboy.nome}
+          foto={x.foto_url}
+          tamanho={88}
+          anel={x.mes.pos === 1 ? "ouro" : x.mes.pos === 2 ? "prata" : x.mes.pos === 3 ? "bronze" : "eu"}
+        />
+        <div className="info">
+          <span className="marca" style={{ fontSize: ".8rem" }}>
+            MOTOBOYS 99
+          </span>
+          <span className="nome-grande">{p.motoboy.nome}</span>
+          <span className="muted pequeno" style={{ textTransform: "capitalize" }}>
             {dataLonga(p.hoje)}
-          </p>
+          </span>
+          <div className="stats">
+            <div className="stat">
+              <b>{x.mes.pos ? `${x.mes.pos}º` : "—"}</b>
+              <span>No mês</span>
+            </div>
+            <div className="stat">
+              <b>{x.mes.pontos ?? 0}</b>
+              <span>Pontos</span>
+            </div>
+            <div className="stat">
+              <b>{x.mes.entregas ?? 0}</b>
+              <span>Entregas</span>
+            </div>
+          </div>
         </div>
+      </section>
+      <div className="linha entre" style={{ gap: 8 }}>
+        <Link href="/m/ranking" className="botao primario" style={{ flex: 1 }}>
+          🏆 Ver ranking
+        </Link>
         <form action={sairMotoboy}>
           <button className="botao">Sair</button>
         </form>
@@ -93,6 +135,71 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
             </label>
             <button className="botao primario grande">✍ Assinar contrato</button>
           </form>
+        </section>
+      )}
+
+      {x.regulamento && !x.regulamento.aceito_em && !contratoPendente && (
+        <section className="cartao destaque pilha">
+          <h2>🏆 Regulamento do ranking e dos incentivos</h2>
+          <p className="muted">Leia as regras de pontos, prêmios e uso da sua foto no ranking. Aceite uma vez (ou quando for atualizado).</p>
+          <details>
+            <summary className="botao">Ler o regulamento</summary>
+            <div className="texto-doc" style={{ marginTop: 8 }}>
+              {x.regulamento.texto.trim()}
+            </div>
+          </details>
+          <form action={aceitarRegulamento} className="pilha">
+            <div className="campos">
+              <div className="campo">
+                <label htmlFor="rnome">Nome completo</label>
+                <input id="rnome" name="nome" defaultValue={p.motoboy.nome} required minLength={5} />
+              </div>
+              <div className="campo">
+                <label htmlFor="rcpf">CPF</label>
+                <input id="rcpf" name="cpf" inputMode="numeric" placeholder="000.000.000-00" required />
+              </div>
+            </div>
+            <label className="check">
+              <input type="checkbox" name="aceite" required /> Li e aceito o regulamento (versão {x.regulamento.versao})
+            </label>
+            <button className="botao primario grande">Aceitar regulamento</button>
+          </form>
+        </section>
+      )}
+
+      {novasOcorrencias.length > 0 && (
+        <section className="cartao alerta pilha">
+          <h2>Intercorrências para você ver</h2>
+          <p className="muted pequeno" style={{ margin: 0 }}>
+            Marque que está ciente ou conte sua versão em até {x.prazo_contestacao_dias} dias.
+          </p>
+          {novasOcorrencias.map((o) => (
+            <div key={o.id} className="bloco pilha" style={{ gap: 6 }}>
+              <div>
+                <Pontos valor={o.pontos} /> <strong>{o.tipo_nome}</strong> · {dataComDia(o.data)} · {nomeTurno(o.turno)}
+                {o.descricao && <div className="muted">{o.descricao}</div>}
+              </div>
+              <form action={responderOcorrencia} className="pilha" style={{ gap: 6 }}>
+                <input type="hidden" name="ocorrencia_id" value={o.id} />
+                <div className="mini" style={{ flexWrap: "wrap" }}>
+                  <button className="botao" name="acao" value="ciente">
+                    👍 Estou ciente
+                  </button>
+                </div>
+                {o.pode_contestar && (
+                  <details>
+                    <summary className="muted pequeno">Não concordo, quero contestar</summary>
+                    <div className="pilha" style={{ gap: 6, marginTop: 6 }}>
+                      <textarea name="contestacao" rows={3} placeholder="Explique o que aconteceu" />
+                      <button className="botao perigo" name="acao" value="contestar">
+                        Enviar contestação
+                      </button>
+                    </div>
+                  </details>
+                )}
+              </form>
+            </div>
+          ))}
         </section>
       )}
 
@@ -189,6 +296,43 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
         )}
       </section>
 
+      {x.incentivos.length > 0 && (
+        <section className="cartao pilha">
+          <h2>🎯 Incentivos</h2>
+          {x.incentivos.map((i) => {
+            const pct = i.meta ? Math.min(100, Math.round(((i.atual ?? 0) / i.meta) * 100)) : null;
+            return (
+              <div key={i.id} className="pilha" style={{ gap: 6 }}>
+                <div className="linha entre">
+                  <strong>{i.nome}</strong>
+                  <span className="selo ok">+{moeda(i.valor)}</span>
+                </div>
+                {i.descricao && <span className="muted pequeno">{i.descricao}</span>}
+                {pct !== null && (
+                  <div className="progresso" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                    <i style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+                <span className="pequeno">{i.texto}</span>
+              </div>
+            );
+          })}
+          {x.ganhos.length > 0 && (
+            <details>
+              <summary className="muted">Prêmios conquistados ({x.ganhos.filter((g) => !g.cancelado).length})</summary>
+              <ul className="pessoas">
+                {x.ganhos.map((g, k) => (
+                  <li key={k} style={g.cancelado ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
+                    <span>🏅 {g.descricao}</span>
+                    <strong>{moeda(g.valor)}</strong>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
       {paraMim.length > 0 && (
         <section className="cartao destaque pilha">
           <h2>Trocas para você</h2>
@@ -265,6 +409,27 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
             ))}
           </ul>
         </section>
+      )}
+      {x.ocorrencias.length > 0 && (
+        <details className="cartao">
+          <summary>
+            <strong>Minhas intercorrências (90 dias)</strong>
+          </summary>
+          <ul className="pessoas" style={{ marginTop: 8 }}>
+            {x.ocorrencias.map((o) => (
+              <li key={o.id} style={{ flexWrap: "wrap" }}>
+                <span>
+                  <Pontos valor={o.pontos} /> {o.tipo_nome} · {dataComDia(o.data)}
+                  {o.contestacao && <div className="muted pequeno">Sua versão: {o.contestacao}</div>}
+                  {o.decisao && <div className="muted pequeno">Decisão: {o.decisao}</div>}
+                </span>
+                <span className={`selo ${o.status === "anulada" ? "ok" : o.status === "contestada" ? "ama" : ""}`}>
+                  {ROTULO_STATUS_OCORRENCIA[o.status]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </main>
   );

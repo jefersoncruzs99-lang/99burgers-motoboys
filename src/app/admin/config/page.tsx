@@ -189,18 +189,18 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
         </form>
       </section>
 
-      {(["contrato", "termo_diario"] as const).map((tipo) => {
+      {(["contrato", "regulamento", "termo_diario"] as const).map((tipo) => {
         const doc = ativo(tipo);
         const antigos = (docs ?? []).filter((d) => d.tipo === tipo && !d.ativo);
         return (
           <section key={tipo} className="cartao pilha">
-            <h2>{tipo === "contrato" ? "Contrato de prestação de serviço" : "Termo do dia (aceite na chegada)"}</h2>
+            <h2>{tipo === "contrato" ? "Contrato de prestação de serviço" : tipo === "regulamento" ? "Regulamento do ranking e incentivos" : "Termo do dia (aceite na chegada)"}</h2>
             <div className="aviso pequeno">Rascunho: revise com um advogado antes de usar. Ao salvar, cria uma nova versão e guarda a antiga.</div>
             {doc && (
               <p className="muted pequeno" style={{ margin: 0 }}>
                 Versão atual: v{doc.versao}
-                {tipo === "contrato" && <> · {assinaturasDe(doc.id)} assinatura(s)</>}
-                {tipo === "contrato" && " · Uma nova versão pede assinatura de novo para todos."}
+                {tipo !== "termo_diario" && <> · {assinaturasDe(doc.id)} aceite(s)</>}
+                {tipo !== "termo_diario" && " · Uma nova versão pede aceite de novo para todos."}
               </p>
             )}
             <form action={novaVersaoDocumento} className="pilha">
@@ -222,7 +222,7 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
                   <details key={d.id} style={{ marginTop: 8 }}>
                     <summary className="pequeno">
                       v{d.versao} · {d.criado_em.slice(0, 10)}
-                      {tipo === "contrato" && <> · {assinaturasDe(d.id)} assinatura(s)</>}
+                      {tipo !== "termo_diario" && <> · {assinaturasDe(d.id)} aceite(s)</>}
                     </summary>
                     <div className="texto-doc">{d.texto.trim()}</div>
                   </details>

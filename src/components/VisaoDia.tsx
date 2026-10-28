@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ROTULO_FAIXA, dataLonga, hora, moeda, somarDias } from "@/lib/datas";
-import { ROTULO_TIPO_OCORRENCIA, type Dia } from "@/lib/tipos";
+import { ROTULO_STATUS_OCORRENCIA, type Dia } from "@/lib/tipos";
+import { Avatar } from "./Avatar";
+import { Pontos } from "./Pontos";
 
 type Acao = (fd: FormData) => Promise<void>;
 
@@ -84,7 +86,9 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                 const r = p.registro;
                 return (
                   <li key={p.motoboy_id} style={{ flexWrap: "wrap" }}>
-                    <div style={{ minWidth: 180 }}>
+                    <div className="pessoa" style={{ minWidth: 200 }}>
+                      <Avatar nome={p.nome} foto={p.foto_url} tamanho={44} />
+                      <div>
                       <span className="nome">{p.nome}</span>
                       <div className="mini" style={{ marginTop: 4 }}>
                         {r ? (
@@ -103,17 +107,31 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                       {r && (
                         <div className="muted pequeno" style={{ marginTop: 4 }}>
                           Diária {moeda(r.valor_diaria)}
+                          {r.qtd_entregas > 0 && <> · {r.qtd_entregas} entregas</>}
                           {r.observacao && <> · {r.observacao}</>}
                         </div>
                       )}
+                      </div>
                     </div>
 
                     {r && !r.pago && (
                       <form action={acoes.entregas} className="mini">
                         <input type="hidden" name="data" value={dia.data} />
                         <input type="hidden" name="registro_id" value={r.id} />
+                        <label className="muted pequeno" htmlFor={`qtd-${r.id}`}>
+                          Qtd
+                        </label>
+                        <input
+                          id={`qtd-${r.id}`}
+                          name="qtd"
+                          inputMode="numeric"
+                          defaultValue={r.qtd_entregas > 0 ? String(r.qtd_entregas) : ""}
+                          placeholder="0"
+                          style={{ width: 64 }}
+                          required
+                        />
                         <label className="muted pequeno" htmlFor={`ent-${r.id}`}>
-                          Entregas R$
+                          R$
                         </label>
                         <input
                           id={`ent-${r.id}`}
@@ -121,10 +139,10 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                           inputMode="decimal"
                           defaultValue={Number(r.valor_entregas) > 0 ? String(r.valor_entregas).replace(".", ",") : ""}
                           placeholder="0,00"
-                          style={{ width: 100 }}
+                          style={{ width: 90 }}
                           required
                         />
-                        <button className="botao primario">{Number(r.valor_entregas) > 0 ? "Atualizar" : "Lançar"}</button>
+                        <button className="botao primario">{Number(r.valor_entregas) > 0 || r.qtd_entregas > 0 ? "Atualizar" : "Lançar"}</button>
                       </form>
                     )}
                     {r && r.pago && <strong>{moeda(Number(r.valor_diaria) + Number(r.valor_entregas))}</strong>}
@@ -193,15 +211,16 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
               <h3 style={{ margin: 0 }}>Intercorrências</h3>
               {t.ocorrencias.length === 0 && <p className="muted pequeno" style={{ margin: 0 }}>Nenhuma registrada.</p>}
               {t.ocorrencias.map((o) => (
-                <div key={o.id} className="pequeno">
-                  <span className={`selo ${o.tipo === "falta" ? "falta" : o.tipo === "atraso" ? "ama" : ""}`}>
-                    {ROTULO_TIPO_OCORRENCIA[o.tipo] ?? o.tipo}
-                  </span>{" "}
-                  {o.motoboy && <strong>{o.motoboy}</strong>} {o.descricao}
+                <div key={o.id} className="pequeno" style={o.status === "anulada" ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
+                  <Pontos valor={o.pontos} /> <strong>{o.tipo_nome}</strong>
+                  {o.motoboy && <> · {o.motoboy}</>}
+                  {o.descricao && <span className="muted"> · {o.descricao}</span>}
                   <span className="muted">
                     {" "}
                     · {o.por}, {hora(o.em)}
                   </span>
+                  {o.status !== "valida" && <span className="selo ama" style={{ marginLeft: 6 }}>{ROTULO_STATUS_OCORRENCIA[o.status]}</span>}
+                  {o.ciente_em && o.status === "valida" && <span className="selo ok" style={{ marginLeft: 6 }}>Motoboy ciente</span>}
                 </div>
               ))}
               <details>
@@ -210,23 +229,32 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                   <input type="hidden" name="data" value={dia.data} />
                   <input type="hidden" name="turno" value={t.codigo} />
                   <div className="campos">
-                    <select name="tipo" defaultValue="problema" aria-label="Tipo">
-                      {Object.entries(ROTULO_TIPO_OCORRENCIA).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
                     <select name="motoboy_id" defaultValue="" aria-label="Motoboy">
-                      <option value="">(sem motoboy específico)</option>
+                      <option value="">Motoboy (obrigatório se tiver pontos)</option>
                       {dia.motoboys.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.nome}
                         </option>
                       ))}
                     </select>
+                    <select name="tipo" required defaultValue="" aria-label="O que aconteceu">
+                      <option value="" disabled>
+                        O que aconteceu?
+                      </option>
+                      {(["negativa", "positiva", "registro"] as const).map((g) => (
+                        <optgroup key={g} label={g === "negativa" ? "Tira pontos" : g === "positiva" ? "Dá pontos" : "Só registro (não conta ponto)"}>
+                          {dia.tipos_ocorrencia
+                            .filter((tp) => tp.grupo === g)
+                            .map((tp) => (
+                              <option key={tp.codigo} value={tp.codigo}>
+                                {`${tp.nome}${tp.pontos !== 0 ? ` (${tp.pontos > 0 ? "+" : ""}${tp.pontos})` : ""}`}
+                              </option>
+                            ))}
+                        </optgroup>
+                      ))}
+                    </select>
                   </div>
-                  <textarea name="descricao" rows={2} placeholder="O que aconteceu?" required />
+                  <textarea name="descricao" rows={2} placeholder="Detalhes (opcional)" />
                   <button className="botao">Salvar intercorrência</button>
                 </form>
               </details>
