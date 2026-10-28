@@ -1,4 +1,6 @@
--- PENDENTE: ainda não aplicada no Supabase (aguardando confirmação).
+-- JÁ APLICADA no Supabase em 2026-10-28.
+-- Ranking e incentivos valem para TODOS os motoboys ativos. Falta e atraso são só registro (0 ponto).
+-- O aceite do regulamento registra a ciência das regras e autoriza a foto no ranking (sem aceite: aparecem as iniciais).
 -- Fotos, quantidade de entregas, intercorrências com pontos (ciência e contestação pelo motoboy),
 -- ranking (Boy do Mês / Boy do Ano), incentivos apurados automaticamente como ajustes (bônus)
 -- e regulamento do programa com aceite eletrônico.
@@ -127,15 +129,16 @@ insert into public.mb_documentos (tipo, versao, titulo, texto)
 select 'regulamento', 1, 'Regulamento do Ranking e dos Incentivos', $txt$
 REGULAMENTO DO RANKING E DO PROGRAMA DE INCENTIVOS — 99BURGER'S LTDA (CNPJ 40.161.847/0001-72)
 
-1. ADESÃO VOLUNTÁRIA
-1.1. A participação no ranking e nos incentivos é opcional. Quem não aceitar este regulamento continua prestando serviço normalmente, apenas não aparece no ranking e não recebe os incentivos.
-1.2. Este regulamento complementa o contrato de prestação de serviços autônomos e não cria vínculo de emprego.
+1. ABRANGÊNCIA
+1.1. O ranking e os incentivos valem para todos os prestadores de serviço de entrega ativos da CONTRATANTE, de forma igual para todos.
+1.2. Este regulamento complementa o contrato de prestação de serviços autônomos e não cria vínculo de emprego. O aceite no aplicativo registra que o prestador conhece estas regras.
 
 2. PONTUAÇÃO
 2.1. Cada entrega realizada vale pontos conforme a tabela vigente no aplicativo (inicialmente 1 ponto por entrega).
 2.2. Intercorrências registradas pelo gestor de rota ou pela administração somam ou descontam pontos conforme a tabela de intercorrências vigente no aplicativo (por exemplo: esquecer bebida, trocar pedidos ou esquecer a maquininha descontam 10 pontos; elogio de cliente soma 10 pontos).
 2.3. Os pontos servem apenas para o ranking e para os incentivos. Pontos negativos NUNCA geram desconto em dinheiro, multa, suspensão ou retirada de períodos.
-2.4. Alterações na tabela de pontos valem apenas para registros feitos depois da alteração.
+2.4. Faltas e atrasos não descontam pontos: ficam apenas registrados, porque o prestador é livre para escolher os períodos em que se disponibiliza.
+2.5. Alterações na tabela de pontos valem apenas para registros feitos depois da alteração.
 
 3. CIÊNCIA E CONTESTAÇÃO
 3.1. Toda intercorrência fica visível para o prestador no aplicativo, com data, tipo e detalhes.
@@ -143,7 +146,7 @@ REGULAMENTO DO RANKING E DO PROGRAMA DE INCENTIVOS — 99BURGER'S LTDA (CNPJ 40.
 3.3. A data, a hora, o endereço IP e o aparelho usados na ciência ou na contestação ficam registrados.
 
 4. RANKING
-4.1. O ranking é mensal (Boy do Mês) e anual (Boy do Ano). Os participantes veem nome, foto e pontuação total dos colegas; os detalhes das intercorrências de cada um são vistos só pelo próprio prestador e pela administração.
+4.1. O ranking é mensal (Boy do Mês) e anual (Boy do Ano). Os prestadores veem nome, foto e pontuação total dos colegas; os detalhes das intercorrências de cada um são vistos só pelo próprio prestador e pela administração.
 4.2. Em caso de empate, fica na frente quem tiver mais entregas.
 
 5. INCENTIVOS
@@ -151,7 +154,7 @@ REGULAMENTO DO RANKING E DO PROGRAMA DE INCENTIVOS — 99BURGER'S LTDA (CNPJ 40.
 5.2. Prêmios de metas mensais e de ranking são apurados depois do fechamento do mês (ou do ano).
 
 6. USO DA IMAGEM
-6.1. Ao aceitar, o prestador autoriza o uso da sua foto e do seu primeiro nome dentro do aplicativo e em telas internas da loja, exclusivamente para o ranking. A autorização pode ser revogada a qualquer momento, pedindo à administração a retirada da foto.
+6.1. Ao aceitar, o prestador autoriza o uso da sua foto dentro do aplicativo e em telas internas da loja, exclusivamente para o ranking. Sem o aceite, o ranking mostra apenas o nome e as iniciais. A autorização pode ser revogada a qualquer momento, pedindo à administração a retirada da foto.
 
 7. ACEITE ELETRÔNICO
 7.1. O aceite deste regulamento no aplicativo, com nome, CPF, data, hora, endereço IP e aparelho registrados, tem validade de assinatura eletrônica (MP 2.200-2/2001, art. 10, § 2º, e Lei 14.063/2020).
@@ -171,7 +174,7 @@ create policy mb_fotos_delete on storage.objects for delete to authenticated usi
 
 -- ===================== RANKING =====================
 
--- Participa do ranking/incentivos quem aceitou o regulamento vigente
+-- Aceitou o regulamento vigente (ciência das regras + autorização da foto)
 create or replace function public.mb_participa(p_motoboy uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select not exists (select 1 from public.mb_documentos d where d.tipo = 'regulamento' and d.ativo)
@@ -192,13 +195,13 @@ language sql stable set search_path = '' as $$
 create or replace function public.mb_ranking_int(p_inicio date, p_fim date) returns jsonb
 language sql stable security definer set search_path = '' as $$
   with base as (
-    select m.id, m.nome, m.foto_url,
+    select m.id, m.nome, case when public.mb_participa(m.id) then m.foto_url end as foto_url,
       coalesce((select sum(r.qtd_entregas) from public.mb_registros r where r.motoboy_id = m.id and r.data >= p_inicio and r.data < p_fim), 0)::int as entregas,
       (select count(*) from public.mb_registros r where r.motoboy_id = m.id and r.data >= p_inicio and r.data < p_fim)::int as turnos,
       coalesce((select sum(o.pontos) from public.mb_ocorrencias o where o.motoboy_id = m.id and o.status <> 'anulada'
                 and o.data >= p_inicio and o.data < p_fim), 0)::int as pontos_ocorrencias
     from public.mb_motoboys m
-    where m.ativo and public.mb_participa(m.id)
+    where m.ativo
   ), calc as (
     select b.*, b.entregas * coalesce((select c.pontos_por_entrega from public.mb_config c where c.id = 'padrao'), 1) + b.pontos_ocorrencias as pontos
     from base b where b.turnos > 0 or b.pontos_ocorrencias <> 0
@@ -258,7 +261,7 @@ declare v_inc public.mb_incentivos; v_m record; v_hoje date := public.mb_hoje();
 begin
   for v_inc in select * from public.mb_incentivos where ativo order by ordem loop
     if v_inc.tipo = 'a_cada_entregas' then
-      for v_m in select m.id from public.mb_motoboys m where m.ativo and (p_motoboy is null or m.id = p_motoboy) and public.mb_participa(m.id) loop
+      for v_m in select m.id from public.mb_motoboys m where m.ativo and (p_motoboy is null or m.id = p_motoboy) loop
         select coalesce(sum(r.qtd_entregas), 0) into v_total from public.mb_registros r where r.motoboy_id = v_m.id and r.data >= v_inc.inicio;
         k := 1;
         while k <= v_total / v_inc.quantidade loop
@@ -280,7 +283,7 @@ begin
             end if;
           end loop;
         else
-          for v_m in select m.id from public.mb_motoboys m where m.ativo and (p_motoboy is null or m.id = p_motoboy) and public.mb_participa(m.id) loop
+          for v_m in select m.id from public.mb_motoboys m where m.ativo and (p_motoboy is null or m.id = p_motoboy) loop
             if v_inc.tipo = 'meta_entregas_mes' then
               select coalesce(sum(r.qtd_entregas), 0) into v_qtd from public.mb_registros r
               where r.motoboy_id = v_m.id and r.data >= greatest(v_mes, v_inc.inicio) and r.data < v_fim;
@@ -371,7 +374,7 @@ begin
   select * into v_cfg from public.mb_config where id = 'padrao';
   select * into v_reg from public.mb_documentos where tipo = 'regulamento' and ativo;
   v_participa := public.mb_participa(p_id);
-  if v_participa then perform public.mb_apurar_int(p_id); end if;
+  perform public.mb_apurar_int(p_id);
   select x into v_eu from jsonb_array_elements(public.mb_ranking_int(date_trunc('month', public.mb_hoje())::date,
     (date_trunc('month', public.mb_hoje()) + interval '1 month')::date)) x where (x->>'motoboy_id')::uuid = p_id;
   return jsonb_build_object(
@@ -388,7 +391,7 @@ begin
           and o.criado_em > now() - make_interval(days => v_cfg.prazo_contestacao_dias)) order by o.criado_em desc)
       from public.mb_ocorrencias o join public.mb_tipos_ocorrencia t on t.codigo = o.tipo
       where o.motoboy_id = p_id and o.data >= public.mb_hoje() - 90), '[]'::jsonb),
-    'incentivos', case when v_participa then public.mb_progresso_incentivos(p_id) else '[]'::jsonb end,
+    'incentivos', public.mb_progresso_incentivos(p_id),
     'ganhos', coalesce((select jsonb_agg(jsonb_build_object('descricao', g.descricao, 'valor', g.valor, 'criado_em', g.criado_em,
         'cancelado', g.ajuste_id is null) order by g.criado_em desc)
       from (select * from public.mb_incentivos_ganhos where motoboy_id = p_id order by criado_em desc limit 20) g), '[]'::jsonb)
