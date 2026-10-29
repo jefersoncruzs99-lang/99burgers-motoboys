@@ -409,16 +409,18 @@ export async function salvarGestorRota(fd: FormData) {
     const nome = exigir(texto(fd, "nome"), "Nome");
     const pin = texto(fd, "pin").replace(/\D/g, "");
     if (!id && pin.length < 4) throw new Error("Defina um PIN de 4 a 8 números.");
+    const permissoes = { pode_rota: marcado(fd, "pode_rota"), pode_escala: marcado(fd, "pode_escala") };
+    if (!permissoes.pode_rota && !permissoes.pode_escala) throw new Error("Marque pelo menos uma permissão: gestor de rota ou monta a escala.");
     if (id) {
-      const { error } = await supabase.from("mb_gestores_rota").update({ nome, ativo: marcado(fd, "ativo") }).eq("id", id);
+      const { error } = await supabase.from("mb_gestores_rota").update({ nome, ativo: marcado(fd, "ativo"), ...permissoes }).eq("id", id);
       falhou(error);
     } else {
-      const { data, error } = await supabase.from("mb_gestores_rota").insert({ nome }).select("id").single();
+      const { data, error } = await supabase.from("mb_gestores_rota").insert({ nome, ...permissoes }).select("id").single();
       falhou(error);
       id = String(data?.id);
     }
     if (pin) falhou((await supabase.rpc("mb_definir_pin_rota", { p_id: id, p_pin: pin })).error);
-  }, "Gestor de rota salvo.");
+  }, "Acesso salvo.");
 }
 
 export async function salvarConfig(fd: FormData) {

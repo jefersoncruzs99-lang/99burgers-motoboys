@@ -17,6 +17,10 @@ export default function Inicio() {
           <b>📋 Gestor de rota</b>
           <span className="muted">Ver quem chegou e lançar o valor das entregas do dia.</span>
         </Link>
+        <Link href="/escala">
+          <b>🗓 Montar a escala</b>
+          <span className="muted">Para quem organiza a escala da semana. Entra com nome e PIN.</span>
+        </Link>
         <Link href="/admin">
           <b>⚙ Administração</b>
           <span className="muted">Escala, motoboys, pagamentos e contratos. Login do painel 99 Burgers.</span>

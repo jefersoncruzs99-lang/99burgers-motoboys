@@ -4,6 +4,7 @@ import { criarSupabaseServidor } from "./supabase/server";
 
 export const COOKIE_MOTOBOY = "mb_motoboy";
 export const COOKIE_ROTA = "mb_rota";
+export const COOKIE_ESCALA = "mb_escala";
 
 const UM_ANO = 60 * 60 * 24 * 365;
 
@@ -56,6 +57,19 @@ export async function rpcRota<T>(funcao: string, args: Record<string, unknown> =
   if (!a) throw new Error("SEM_ACESSO");
   const supabase = await criarSupabaseServidor();
   const { data, error } = await supabase.rpc(funcao, { p_rota: a.id, p_pin: a.segredo, ...args });
+  if (error) {
+    if (error.message.includes("PIN inválido")) throw new Error("SEM_ACESSO");
+    throw new Error(limpar(error.message));
+  }
+  return data as T;
+}
+
+/** Chama uma função do banco como quem monta a escala (confere o PIN lá dentro). */
+export async function rpcEscala<T>(funcao: string, args: Record<string, unknown> = {}): Promise<T> {
+  const a = await lerAcesso(COOKIE_ESCALA);
+  if (!a) throw new Error("SEM_ACESSO");
+  const supabase = await criarSupabaseServidor();
+  const { data, error } = await supabase.rpc(funcao, { p_id: a.id, p_pin: a.segredo, ...args });
   if (error) {
     if (error.message.includes("PIN inválido")) throw new Error("SEM_ACESSO");
     throw new Error(limpar(error.message));

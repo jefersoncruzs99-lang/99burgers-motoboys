@@ -24,7 +24,7 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
       supabase.from("mb_turnos").select("*").order("ordem"),
       supabase.from("mb_valores").select("*"),
       supabase.from("mb_feriados").select("*").gte("data", `${hoje.slice(0, 4)}-01-01`).order("data"),
-      supabase.from("mb_gestores_rota").select("id, nome, ativo, pin_hash").order("nome"),
+      supabase.from("mb_gestores_rota").select("id, nome, ativo, pin_hash, pode_rota, pode_escala").order("nome"),
       supabase.from("mb_documentos").select("id, tipo, versao, titulo, texto, ativo, criado_em").order("versao", { ascending: false }),
       supabase.from("mb_assinaturas").select("documento_id"),
     ]);
@@ -143,8 +143,11 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
       </section>
 
       <section className="cartao pilha">
-        <h2>Gestores de rota</h2>
-        <p className="muted pequeno">Entram em /rota escolhendo o nome e digitando o PIN.</p>
+        <h2>Acessos com PIN</h2>
+        <p className="muted pequeno">
+          Quem entra com nome + PIN. <strong>Gestor de rota</strong> entra em /rota (chegadas, entregas, intercorrências, QR e dinheiro).{" "}
+          <strong>Monta a escala</strong> entra em /escala e só vê a escala da semana e a semana padrão.
+        </p>
         {(gestores ?? []).map((g) => (
           <form key={g.id} action={salvarGestorRota} className="campos bloco">
             <input type="hidden" name="id" value={g.id} />
@@ -157,6 +160,12 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
               <input name="pin" inputMode="numeric" maxLength={8} autoComplete="off" />
             </div>
             <label className="check">
+              <input type="checkbox" name="pode_rota" defaultChecked={g.pode_rota} /> Gestor de rota
+            </label>
+            <label className="check">
+              <input type="checkbox" name="pode_escala" defaultChecked={g.pode_escala} /> Monta a escala
+            </label>
+            <label className="check">
               <input type="checkbox" name="ativo" defaultChecked={g.ativo} /> Ativo
             </label>
             <button className="botao">Salvar</button>
@@ -164,13 +173,19 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
         ))}
         <form action={salvarGestorRota} className="campos bloco">
           <div className="campo">
-            <label>Novo gestor de rota</label>
+            <label>Nova pessoa com PIN</label>
             <input name="nome" required placeholder="Nome" />
           </div>
           <div className="campo">
             <label>PIN (4 a 8 números)</label>
             <input name="pin" inputMode="numeric" maxLength={8} autoComplete="off" required />
           </div>
+          <label className="check">
+            <input type="checkbox" name="pode_rota" defaultChecked /> Gestor de rota
+          </label>
+          <label className="check">
+            <input type="checkbox" name="pode_escala" /> Monta a escala
+          </label>
           <button className="botao primario">Cadastrar</button>
         </form>
       </section>
