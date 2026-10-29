@@ -3,7 +3,7 @@ import { Mensagens } from "@/components/Mensagens";
 import { COOKIE_MOTOBOY, lerAcesso, rpcMotoboy } from "@/lib/acesso";
 import { ROTULO_FAIXA, dataComDia, dataLonga, hora, moeda } from "@/lib/datas";
 import { ROTULO_FORMA, ROTULO_STATUS_OCORRENCIA, type ExtraMotoboy, type PainelMotoboy, type TurnoInfo } from "@/lib/tipos";
-import { Avatar } from "@/components/Avatar";
+import { TrocarFoto } from "@/components/TrocarFoto";
 import { Pontos } from "@/components/Pontos";
 import { FormEntrar } from "./FormEntrar";
 import {
@@ -13,7 +13,9 @@ import {
   cancelarTroca,
   confirmarChegada,
   pedirTroca,
+  removerMinhaFoto,
   responderOcorrencia,
+  salvarMinhaFoto,
   sairMotoboy,
 } from "./actions";
 
@@ -74,11 +76,15 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
   return (
     <main className="container pilha" style={{ maxWidth: 760 }}>
       <section className="cracha">
-        <Avatar
+        <TrocarFoto
+          id={p.motoboy.id}
           nome={p.motoboy.nome}
           foto={x.foto_url}
           tamanho={88}
           anel={x.mes.pos === 1 ? "ouro" : x.mes.pos === 2 ? "prata" : x.mes.pos === 3 ? "bronze" : "eu"}
+          enviar={salvarMinhaFoto}
+          remover={removerMinhaFoto}
+          rotulo="pôr foto"
         />
         <div className="info">
           <span className="marca" style={{ fontSize: ".8rem" }}>
@@ -104,6 +110,11 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
           </div>
         </div>
       </section>
+      {x.foto_url && !x.participa && (
+        <p className="muted pequeno" style={{ margin: 0 }}>
+          Sua foto só aparece para os colegas no ranking depois que você aceitar o regulamento.
+        </p>
+      )}
       <div className="linha entre" style={{ gap: 8 }}>
         <Link href="/m/ranking" className="botao primario" style={{ flex: 1 }}>
           🏆 Ver ranking

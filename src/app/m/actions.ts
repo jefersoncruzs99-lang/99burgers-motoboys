@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { COOKIE_MOTOBOY, apagarAcesso, guardarAcesso, origemDoAcesso, rpcMotoboy } from "@/lib/acesso";
 import { criarSupabaseServidor } from "@/lib/supabase/server";
 import { marcado, texto, textoOuNulo, uuidOuNulo } from "@/lib/form";
@@ -150,6 +151,32 @@ export async function responderOcorrencia(fd: FormData) {
       return r === "contestada" ? "Contestação enviada. A administração vai analisar." : "Ciência registrada.";
     },
     undefined,
+    "/m",
+  );
+}
+
+export async function salvarMinhaFoto(fd: FormData): Promise<{ ok?: boolean; erro?: string }> {
+  try {
+    const arquivo = fd.get("foto");
+    if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha uma foto." };
+    if (arquivo.size > 600_000) return { erro: "Foto muito grande. Tente outra." };
+    const base64 = Buffer.from(await arquivo.arrayBuffer()).toString("base64");
+    await rpcMotoboy("mb_m_salvar_foto", { p_base64: base64 });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof Error && e.message === "SEM_ACESSO") return { erro: "Entre de novo com sua chave." };
+    return { erro: e instanceof Error ? e.message : "Erro ao salvar a foto." };
+  }
+}
+
+export async function removerMinhaFoto() {
+  await executar(
+    "/m",
+    async () => {
+      await rpcMotoboy("mb_m_remover_foto");
+    },
+    "Foto removida.",
     "/m",
   );
 }
