@@ -84,7 +84,16 @@ function CardTurno({
       </header>
       {aviso && <div className="esc-aviso">{aviso}</div>}
       <div className="esc-boys">
-        {pessoas.length === 0 && <div className="esc-vazio">Ninguém escalado ainda</div>}
+        {pessoas.length === 0 && (
+          <div className="esc-vazio">
+            Ninguém escalado ainda
+            {podeMexer && ocultos.data && (
+              <div className="pequeno" style={{ marginTop: 4 }}>
+                Toque em <strong>⚡ Preencher a semana</strong> lá embaixo para puxar da semana padrão, ou adicione aqui.
+              </div>
+            )}
+          </div>
+        )}
         {pessoas.map((p, i) => (
           <div key={p.id} className={`esc-boy ${p.chegou ? "chegou" : ""} ${p.inativo ? "inativo" : ""}`} style={{ animationDelay: `${i * 60}ms` }}>
             <Avatar nome={p.nome} foto={p.foto_url} tamanho={64} anel={p.chegou ? "ouro" : undefined} />
