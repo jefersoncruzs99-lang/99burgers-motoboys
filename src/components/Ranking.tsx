@@ -104,6 +104,8 @@ export function Ranking({ dados, base, voltar }: { dados: DadosRanking; base: st
   // empates: os 3 primeiros da lista ocupam o pódio
   const podio = [lista[0], lista[1], lista[2]];
   const resto = lista.slice(3);
+  const link = (periodo: string, turno?: string | null) => `${base}?periodo=${periodo}${turno ? `&turno=${turno}` : ""}`;
+  const nomeTurno = dados.turno ? dados.turnos?.find((t) => t.codigo === dados.turno)?.nome : null;
   const abas: [string, string][] = [
     ["mes", "Mês"],
     ["ano", "Ano · Boy do Ano"],
@@ -122,16 +124,30 @@ export function Ranking({ dados, base, voltar }: { dados: DadosRanking; base: st
         )}
         <nav className="abas-ranking">
           {abas.map(([k, r]) => (
-            <Link key={k} href={`${base}?periodo=${k}`} className={dados.periodo === k ? "ativa" : ""}>
+            <Link key={k} href={link(k, dados.turno)} className={dados.periodo === k ? "ativa" : ""}>
               {r}
             </Link>
           ))}
         </nav>
       </div>
+      {(dados.turnos?.length ?? 0) > 1 && (
+        <nav className="abas-ranking abas-turno" aria-label="Turno">
+          <Link href={link(dados.periodo, null)} className={!dados.turno ? "ativa" : ""}>
+            Geral
+          </Link>
+          {dados.turnos?.map((t) => (
+            <Link key={t.codigo} href={link(dados.periodo, t.codigo)} className={dados.turno === t.codigo ? "ativa" : ""}>
+              {t.codigo === "manha" ? "☀️ " : t.codigo === "noite" ? "🌙 " : ""}
+              {t.nome}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <header className="titulo-ranking">
         <div className="trofeu">🏆</div>
         <h1>{nomePeriodo(dados.periodo, dados.inicio)}</h1>
+        {nomeTurno && <div className="selo-turno">{dados.turno === "manha" ? "☀️" : "🌙"} Turno da {nomeTurno.toLowerCase()}</div>}
         <p className="muted">
           {dados.inicio.split("-").reverse().join("/")} a {dados.fim.split("-").reverse().join("/")} · 1 entrega = 1 ponto, intercorrências somam ou
           tiram
@@ -140,7 +156,7 @@ export function Ranking({ dados, base, voltar }: { dados: DadosRanking; base: st
 
       {lista.length === 0 ? (
         <div className="cartao" style={{ textAlign: "center" }}>
-          <p style={{ fontSize: "1.2rem" }}>Ninguém pontuou ainda neste período.</p>
+          <p style={{ fontSize: "1.2rem" }}>Ninguém pontuou ainda neste período{nomeTurno ? ` no turno da ${nomeTurno.toLowerCase()}` : ""}.</p>
           <p className="muted">A primeira entrega já coloca você no topo!</p>
         </div>
       ) : (
@@ -182,7 +198,10 @@ export function Ranking({ dados, base, voltar }: { dados: DadosRanking; base: st
         <div className="cartao campeao-anterior">
           <Avatar nome={dados.campeao_anterior.nome} foto={dados.campeao_anterior.foto_url} tamanho={52} anel="ouro" />
           <div>
-            <div className="muted pequeno">{rotuloAnterior(dados.periodo, dados.inicio_anterior)}</div>
+            <div className="muted pequeno">
+              {rotuloAnterior(dados.periodo, dados.inicio_anterior)}
+              {nomeTurno ? ` · ${nomeTurno}` : ""}
+            </div>
             <strong style={{ fontSize: "1.1rem" }}>🥇 {dados.campeao_anterior.nome}</strong>
             <div className="muted pequeno">
               {dados.campeao_anterior.pontos} pts · {dados.campeao_anterior.entregas} entregas

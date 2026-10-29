@@ -126,6 +126,8 @@ export interface ItemRanking {
 
 export interface DadosRanking {
   periodo: "mes" | "ano" | "mes_anterior" | "ano_anterior";
+  turno?: string | null;
+  turnos?: { codigo: string; nome: string }[];
   inicio: string;
   fim: string;
   ranking: ItemRanking[];

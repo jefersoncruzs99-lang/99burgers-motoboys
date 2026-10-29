@@ -6,7 +6,7 @@ import type { DadosRanking } from "@/lib/tipos";
 export default async function RankingAdmin({ searchParams }: { searchParams: ParamsPagina }) {
   const sp = await searchParams;
   const { supabase } = await exigirGestor();
-  const { data, error } = await supabase.rpc("mb_a_ranking", { p_periodo: sp.periodo ?? "mes" });
+  const { data, error } = await supabase.rpc("mb_a_ranking_t", { p_periodo: sp.periodo ?? "mes", p_turno: sp.turno ?? null });
   const dados = data as DadosRanking | null;
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", width: "100%" }} className="pilha">

@@ -278,3 +278,6 @@ th { color: var(--cinza); font-size: .85rem; font-weight: 600; }
   box-shadow: 0 0 0 6px var(--amarelo), 0 20px 60px rgba(255,156,0,.25); }
 .qr-svg, .qr-svg svg { width: 100%; height: 100%; display: block; }
 .cheguei-grande { min-height: 84px; font-size: 1.5rem; border-radius: 20px; }
+.abas-turno { align-self: center; }
+.abas-turno a.ativa { background: #fff; color: #000; }
+.selo-turno { display: inline-block; margin-top: 2px; padding: 4px 12px; border-radius: 99px; background: var(--fundo-2); border: 1px solid var(--borda); font-weight: 700; }

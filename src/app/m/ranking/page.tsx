@@ -9,7 +9,7 @@ export default async function RankingMotoboy({ searchParams }: { searchParams: P
   const sp = await searchParams;
   let dados: DadosRanking;
   try {
-    dados = await rpcMotoboy<DadosRanking>("mb_m_ranking", { p_periodo: sp.periodo ?? "mes" });
+    dados = await rpcMotoboy<DadosRanking>("mb_m_ranking_t", { p_periodo: sp.periodo ?? "mes", p_turno: sp.turno ?? null });
   } catch (e) {
     if (e instanceof Error && e.message === "SEM_ACESSO") redirect("/m");
     throw e;
