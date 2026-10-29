@@ -60,7 +60,12 @@ export default async function AreaEscala({ searchParams }: { searchParams: Promi
         </div>
       </div>
       <Mensagens erro={sp.erro} ok={sp.ok} />
-      <GradeSemana dados={dados} base="/escala" acoes={{ adicionar: escAdicionar, remover: escRemover, gerar: escGerar, refazer: escRefazer }} />
+      <GradeSemana
+        dados={dados}
+        base="/escala"
+        diaSel={sp.dia}
+        acoes={{ adicionar: escAdicionar, remover: escRemover, gerar: escGerar, refazer: escRefazer }}
+      />
     </main>
   );
 }

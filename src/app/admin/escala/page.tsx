@@ -26,6 +26,7 @@ export default async function AdminEscala({ searchParams }: { searchParams: Para
           base="/admin/escala"
           acoes={{ adicionar: addEscala, remover: removerEscala, gerar: gerarSemana, refazer: refazerDia }}
           linkDia={(d) => `/admin?data=${d}`}
+          diaSel={sp.dia}
         />
       )}
     </>

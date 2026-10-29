@@ -195,7 +195,7 @@ export async function refazerDia(fd: FormData) {
 }
 
 export async function addPadrao(fd: FormData) {
-  await executar("/admin/escala/padrao", async () => {
+  await executar(volta(fd, "/admin/escala/padrao"), async () => {
     const { supabase } = await exigirGestor();
     const ids = motoboysMarcados(fd);
     const turno = exigir(texto(fd, "turno"), "Turno");
@@ -217,7 +217,7 @@ export async function addPadrao(fd: FormData) {
 }
 
 export async function removerPadrao(fd: FormData) {
-  await executar("/admin/escala/padrao", async () => {
+  await executar(volta(fd, "/admin/escala/padrao"), async () => {
     const { supabase } = await exigirGestor();
     const id = uuidOuNulo(fd, "id");
     if (!id) throw new Error("Item inválido.");

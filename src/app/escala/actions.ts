@@ -28,9 +28,9 @@ export async function sairEscala() {
   redirect("/escala");
 }
 
-function volta(fd: FormData) {
+function volta(fd: FormData, padrao = "/escala") {
   const v = texto(fd, "volta");
-  return v.startsWith("/escala") && !v.startsWith("//") ? v : "/escala";
+  return v.startsWith("/escala") && !v.startsWith("//") ? v : padrao;
 }
 
 function marcados(fd: FormData) {
@@ -99,7 +99,7 @@ export async function escRefazer(fd: FormData) {
 
 export async function escPadraoAdicionar(fd: FormData) {
   await executar(
-    "/escala/padrao",
+    volta(fd, "/escala/padrao"),
     async () => {
       const ids = marcados(fd);
       const dias = [...new Set(fd.getAll("dias").map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))];
@@ -115,7 +115,7 @@ export async function escPadraoAdicionar(fd: FormData) {
 
 export async function escPadraoRemover(fd: FormData) {
   await executar(
-    "/escala/padrao",
+    volta(fd, "/escala/padrao"),
     async () => {
       const id = uuidOuNulo(fd, "id");
       if (!id) throw new Error("Item inválido.");

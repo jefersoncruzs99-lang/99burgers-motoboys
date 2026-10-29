@@ -18,7 +18,12 @@ export default async function AdminPadrao({ searchParams }: { searchParams: Para
       </div>
       <p className="muted">É o modelo usado para preencher a escala. Mudar aqui não altera semanas já preenchidas. Feriados usam o domingo.</p>
       <Mensagens erro={sp.erro ?? error?.message} ok={sp.ok} />
-      {data && <GradePadrao dados={data as DadosPadrao} acoes={{ adicionar: addPadrao, remover: removerPadrao }} />}
+      {data && <GradePadrao
+          dados={data as DadosPadrao}
+          base="/admin/escala/padrao"
+          dowSel={sp.dia !== undefined ? Number(sp.dia) : undefined}
+          acoes={{ adicionar: addPadrao, remover: removerPadrao }}
+        />}
     </>
   );
 }
