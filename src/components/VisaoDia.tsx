@@ -10,6 +10,8 @@ export interface AcoesDia {
   chegada: Acao;
   entregas: Acao;
   ocorrencia: Acao;
+  /** pagar o turno em dinheiro na hora */
+  dinheiro?: Acao;
   /** só na administração */
   corrigir?: Acao;
   remover?: Acao;
@@ -98,7 +100,7 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                             </span>
                             {r.fora_da_escala && <span className="selo extra">Fora da escala</span>}
                             {r.origem_chegada === "gestor" && <span className="selo">Registrado por gestor</span>}
-                            {r.pago && <span className="selo ama">Pago</span>}
+                            {r.pago && <span className="selo ama">{r.pago_dinheiro ? "💵 Pago em dinheiro" : "Pago"}</span>}
                           </>
                         ) : (
                           <span className="selo falta">Não chegou</span>
@@ -146,6 +148,21 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                       </form>
                     )}
                     {r && r.pago && <strong>{moeda(Number(r.valor_diaria) + Number(r.valor_entregas))}</strong>}
+
+                    {r && !r.pago && acoes.dinheiro && (Number(r.valor_entregas) > 0 || r.qtd_entregas > 0) && (
+                      <details>
+                        <summary className="botao">💵 Pago em dinheiro</summary>
+                        <form action={acoes.dinheiro} className="pilha" style={{ marginTop: 8, gap: 6 }}>
+                          <input type="hidden" name="data" value={dia.data} />
+                          <input type="hidden" name="registro_id" value={r.id} />
+                          <span className="pequeno">
+                            Diária {moeda(r.valor_diaria)} + entregas {moeda(r.valor_entregas)} ={" "}
+                            <strong>{moeda(Number(r.valor_diaria) + Number(r.valor_entregas))}</strong>
+                          </span>
+                          <button className="botao sucesso">Confirmar: paguei em dinheiro</button>
+                        </form>
+                      </details>
+                    )}
 
                     {!r && podeRegistrar && (
                       <details>

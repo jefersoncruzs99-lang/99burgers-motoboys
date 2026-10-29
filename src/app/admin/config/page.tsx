@@ -3,6 +3,7 @@ import { exigirGestor } from "@/lib/auth";
 import { ROTULO_FAIXA, dataComDia, hojeISO } from "@/lib/datas";
 import {
   addFeriado,
+  novoSegredoQr,
   novaVersaoDocumento,
   removerFeriado,
   salvarConfig,
@@ -181,11 +182,19 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
             <input type="checkbox" name="troca_automatica" defaultChecked={config?.troca_automatica ?? true} /> Troca automática: vale assim que o
             colega aceita (sem aprovação)
           </label>
+          <label className="check">
+            <input type="checkbox" name="qr_obrigatorio" defaultChecked={config?.qr_obrigatorio ?? true} /> Exigir QR code na chegada (o motoboy só
+            confirma escaneando o QR do gestor de rota ou do tablet da loja)
+          </label>
           <div className="campo" style={{ maxWidth: 320 }}>
             <label>Pode confirmar chegada a partir de quantos minutos antes do turno</label>
             <input name="checkin_antecedencia_min" inputMode="numeric" defaultValue={config?.checkin_antecedencia_min ?? 120} />
           </div>
           <button className="botao">Salvar regras</button>
+        </form>
+        <form action={novoSegredoQr} className="linha entre bloco" style={{ flexWrap: "wrap", gap: 8 }}>
+          <span className="muted pequeno">Desconfia que alguém conseguiu copiar o QR? Gere um novo segredo e todo QR antigo para de funcionar.</span>
+          <button className="botao">Gerar novo segredo do QR</button>
         </form>
       </section>
 

@@ -17,7 +17,8 @@ export async function entrarMotoboy(_: EstadoEntrar, fd: FormData): Promise<Esta
   const { data, error } = await supabase.rpc("mb_motoboy_entrar", { p_telefone: telefone, p_chave: chave });
   if (error || !data) return { erro: error?.message.replace(/^.*?ERROR:\s*/i, "") ?? "Telefone ou chave incorretos." };
   await guardarAcesso(COOKIE_MOTOBOY, String(data), chave);
-  redirect("/m");
+  const destino = texto(fd, "destino");
+  redirect(destino.startsWith("/m") && !destino.startsWith("//") ? destino : "/m");
 }
 
 export async function sairMotoboy() {
@@ -50,11 +51,12 @@ export async function confirmarChegada(fd: FormData) {
       const turno = texto(fd, "turno");
       if (!marcado(fd, "aceite")) throw new Error("Para confirmar, marque que aceita o termo do dia.");
       const { ip, ua } = await origemDoAcesso();
-      const r = await rpcMotoboy<{ faixa: number; valor_diaria: number; chegada_em: string; fora_da_escala: boolean }>("mb_m_chegar", {
+      const r = await rpcMotoboy<{ faixa: number; valor_diaria: number; chegada_em: string; fora_da_escala: boolean }>("mb_m_chegar_qr", {
         p_turno: turno,
         p_aceite: true,
         p_ip: ip,
         p_ua: ua,
+        p_ticket: uuidOuNulo(fd, "ticket"),
       });
       return `Chegada confirmada às ${hora(r.chegada_em)}. ${ROTULO_FAIXA[r.faixa] ?? ""}: ${moeda(r.valor_diaria)}.${
         r.fora_da_escala ? " Você não estava na escala deste turno; o gestor de rota vai ver." : ""

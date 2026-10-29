@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 import { entrarMotoboy, type EstadoEntrar } from "./actions";
 
-export function FormEntrar() {
+export function FormEntrar({ destino }: { destino?: string } = {}) {
   const [estado, acao, enviando] = useActionState<EstadoEntrar, FormData>(entrarMotoboy, {});
   return (
     <form action={acao} className="cartao pilha">
+      {destino && <input type="hidden" name="destino" value={destino} />}
       <div className="campo">
         <label htmlFor="telefone">Seu telefone (com DDD)</label>
         <input id="telefone" name="telefone" type="tel" inputMode="numeric" autoComplete="tel" placeholder="71 99999-9999" required />

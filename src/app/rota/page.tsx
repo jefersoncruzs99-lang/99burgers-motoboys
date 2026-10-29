@@ -6,7 +6,7 @@ import { hojeISO, somarDias } from "@/lib/datas";
 import { criarSupabaseServidor } from "@/lib/supabase/server";
 import type { Dia } from "@/lib/tipos";
 import { FormEntrarRota } from "./FormEntrarRota";
-import { rotaChegada, rotaEntregas, rotaOcorrencia, sairRota } from "./actions";
+import { rotaChegada, rotaDinheiro, rotaEntregas, rotaOcorrencia, sairRota } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -58,12 +58,15 @@ export default async function AreaRota({ searchParams }: { searchParams: Promise
         </form>
       </div>
       <Mensagens erro={sp.erro} ok={sp.ok} />
+      <Link href="/rota/qr" className="botao primario grande cheio">
+        📱 Mostrar QR de chegada
+      </Link>
       <VisaoDia
         dia={dia}
         base="/rota"
         hoje={hoje}
         minData={somarDias(hoje, -7)}
-        acoes={{ chegada: rotaChegada, entregas: rotaEntregas, ocorrencia: rotaOcorrencia }}
+        acoes={{ chegada: rotaChegada, entregas: rotaEntregas, ocorrencia: rotaOcorrencia, dinheiro: rotaDinheiro }}
       />
       <p className="muted pequeno">
         Chegadas pelo gestor: até 3 dias para trás. Entregas: até 7 dias, enquanto o dia não foi pago.

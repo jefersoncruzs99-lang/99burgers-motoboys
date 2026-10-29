@@ -214,6 +214,7 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
             termo={p.termo}
             valores={tipoHoje}
             bloqueado={contratoPendente}
+            qr={!!x.qr_obrigatorio}
           />
         ))}
       </section>
@@ -285,9 +286,12 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
           <details>
             <summary className="muted">Pagamentos anteriores</summary>
             <ul className="pessoas">
-              {p.pagamento.historico.map((h) => (
-                <li key={h.data}>
-                  <span>{dataComDia(h.data)}</span>
+              {p.pagamento.historico.map((h, k) => (
+                <li key={k}>
+                  <span>
+                    {dataComDia(h.data)}
+                    {h.forma === "dinheiro" && <span className="muted pequeno"> · 💵 dinheiro</span>}
+                  </span>
                   <strong>{moeda(h.total)}</strong>
                 </li>
               ))}
@@ -442,6 +446,7 @@ function CartaoHoje({
   termo,
   valores,
   bloqueado,
+  qr,
 }: {
   turno: TurnoInfo;
   escalado: boolean;
@@ -449,6 +454,7 @@ function CartaoHoje({
   termo: PainelMotoboy["termo"];
   valores: Record<string, number>;
   bloqueado: boolean;
+  qr: boolean;
 }) {
   return (
     <article className={`cartao turno ${registro ? "" : escalado ? "destaque" : ""}`}>
@@ -476,6 +482,10 @@ function CartaoHoje({
           </p>
           {bloqueado ? (
             <div className="aviso">Assine o contrato acima para confirmar sua chegada.</div>
+          ) : qr ? (
+            <div className="aviso">
+              📷 Chegou na loja? Peça o <strong>QR de chegada</strong> ao gestor de rota e aponte a câmera do celular para ele.
+            </div>
           ) : (
             <form action={confirmarChegada} className="pilha">
               <input type="hidden" name="turno" value={turno.codigo} />

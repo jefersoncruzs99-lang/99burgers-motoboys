@@ -56,7 +56,7 @@ export interface PainelMotoboy {
     acumulando: { total: number; dias: number };
     dias: { data: string; turno: Turno; chegada_em: string; faixa: number; valor_diaria: number; valor_entregas: number }[];
     ajustes: { data: string; valor: number; motivo: string }[];
-    historico: { data: string; total: number; diarias: number; entregas: number; ajustes: number }[];
+    historico: { data: string; total: number; diarias: number; entregas: number; ajustes: number; forma?: string }[];
   };
 }
 
@@ -67,6 +67,7 @@ export interface RegistroDia {
   valor_diaria: number;
   valor_entregas: number;
   qtd_entregas: number;
+  pago_dinheiro?: boolean;
   origem_chegada: "motoboy" | "gestor";
   fora_da_escala: boolean;
   entregas_lancadas_por: string | null;
@@ -139,6 +140,7 @@ export interface ExtraMotoboy {
   foto_url: string | null;
   participa: boolean;
   prazo_contestacao_dias: number;
+  qr_obrigatorio?: boolean;
   regulamento: { id: string; versao: number; titulo: string; texto: string; aceito_em: string | null } | null;
   mes: { pos?: number; pontos?: number; entregas?: number; turnos?: number; pontos_ocorrencias?: number };
   ocorrencias: {

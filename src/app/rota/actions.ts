@@ -5,6 +5,7 @@ import { COOKIE_ROTA, apagarAcesso, guardarAcesso, rpcRota } from "@/lib/acesso"
 import { criarSupabaseServidor } from "@/lib/supabase/server";
 import { exigir, inteiroOuNulo, numeroOuNulo, texto, textoOuNulo, uuidOuNulo } from "@/lib/form";
 import { executar } from "@/lib/navegar";
+import { desenharQr, type QrAtual } from "@/lib/qr";
 
 export type EstadoEntrarRota = { erro?: string };
 
@@ -83,6 +84,28 @@ export async function rotaOcorrencia(fd: FormData) {
       });
     },
     "Intercorrência registrada.",
+    "/rota",
+  );
+}
+
+export async function obterQrRota(): Promise<QrAtual | { erro: string }> {
+  try {
+    const d = await rpcRota<{ codigo: string; restante: number; janela: number }>("mb_r_qr");
+    return await desenharQr(d);
+  } catch (e) {
+    return { erro: e instanceof Error && e.message === "SEM_ACESSO" ? "Entre de novo com seu PIN." : e instanceof Error ? e.message : "Erro." };
+  }
+}
+
+export async function rotaDinheiro(fd: FormData) {
+  await executar(
+    volta(fd),
+    async () => {
+      const registro = uuidOuNulo(fd, "registro_id");
+      if (!registro) throw new Error("Turno inválido.");
+      await rpcRota("mb_r_pagar_dinheiro", { p_registro: registro });
+    },
+    "Pago em dinheiro registrado. Esse turno saiu do saldo da quarta/quinzena.",
     "/rota",
   );
 }

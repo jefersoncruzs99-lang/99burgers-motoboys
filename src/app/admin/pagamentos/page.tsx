@@ -27,7 +27,7 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
     supabase.from("mb_ajustes").select("id, data, valor, motivo, mb_motoboys(nome)").is("pagamento_id", null).order("data"),
     supabase
       .from("mb_pagamentos")
-      .select("id, data_pagamento, diarias, entregas, ajustes, total, observacao, pago_em, mb_motoboys(nome)")
+      .select("id, data_pagamento, diarias, entregas, ajustes, total, observacao, forma, pago_em, mb_motoboys(nome)")
       .order("pago_em", { ascending: false })
       .limit(40),
     supabase.from("mb_motoboys").select("id, nome").eq("ativo", true).order("nome"),
@@ -96,6 +96,10 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
                           <form action={pagar} className="mini">
                             <input type="hidden" name="motoboy_id" value={l.motoboy_id} />
                             <input type="hidden" name="data" value={d} />
+                            <select name="forma" defaultValue="pix" aria-label="Forma de pagamento" style={{ minHeight: 38 }}>
+                              <option value="pix">PIX</option>
+                              <option value="dinheiro">Dinheiro</option>
+                            </select>
                             <button className="botao sucesso">Marcar pago</button>
                           </form>
                         )}
@@ -188,8 +192,14 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
               <tbody>
                 {(historico ?? []).map((h) => (
                   <tr key={h.id}>
-                    <td>{dataComDia(h.data_pagamento)}</td>
-                    <td>{nomeDe(h.mb_motoboys)}</td>
+                    <td>
+                      {dataComDia(h.data_pagamento)}
+                      <div className="muted pequeno">{h.forma === "dinheiro" ? "💵 Dinheiro" : "PIX"}</div>
+                    </td>
+                    <td>
+                      {nomeDe(h.mb_motoboys)}
+                      {h.observacao && <div className="muted pequeno">{h.observacao}</div>}
+                    </td>
                     <td>{moeda(h.diarias)}</td>
                     <td>{moeda(h.entregas)}</td>
                     <td>{moeda(h.ajustes)}</td>

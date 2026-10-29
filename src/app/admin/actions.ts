@@ -5,6 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { exigirGestor } from "@/lib/auth";
 import { exigir, inteiroOuNulo, marcado, numeroOuNulo, texto, textoOuNulo, uuidOuNulo } from "@/lib/form";
 import { executar } from "@/lib/navegar";
+import { desenharQr, type QrAtual } from "@/lib/qr";
 import { somarDias } from "@/lib/datas";
 import { criarSupabaseServidor } from "@/lib/supabase/server";
 
@@ -86,6 +87,34 @@ export async function admRemover(fd: FormData) {
     falhou(error);
     if (!data?.length) throw new Error("Não foi possível apagar (já pago?).");
   }, "Chegada apagada.");
+}
+
+export async function admDinheiro(fd: FormData) {
+  await executar(voltaDia(fd), async () => {
+    const { supabase } = await exigirGestor();
+    const registro = uuidOuNulo(fd, "registro_id");
+    if (!registro) throw new Error("Turno inválido.");
+    falhou((await supabase.rpc("mb_a_pagar_dinheiro", { p_registro: registro })).error);
+  }, "Pago em dinheiro registrado. Esse turno saiu do saldo da quarta/quinzena.");
+}
+
+export async function obterQrAdmin(): Promise<QrAtual | { erro: string }> {
+  try {
+    const { supabase } = await exigirGestor();
+    const { data, error } = await supabase.rpc("mb_a_qr");
+    if (error) return { erro: error.message };
+    return await desenharQr(data as { codigo: string; restante: number; janela: number });
+  } catch (e) {
+    unstable_rethrow(e);
+    return { erro: e instanceof Error ? e.message : "Erro." };
+  }
+}
+
+export async function novoSegredoQr() {
+  await executar("/admin/config", async () => {
+    const { supabase } = await exigirGestor();
+    falhou((await supabase.rpc("mb_a_novo_segredo_qr")).error);
+  }, "Novo segredo gerado: qualquer QR antigo parou de funcionar.");
 }
 
 export async function admOcorrencia(fd: FormData) {
@@ -245,12 +274,14 @@ export async function pagar(fd: FormData) {
     const { supabase } = await exigirGestor();
     const motoboy = uuidOuNulo(fd, "motoboy_id");
     if (!motoboy) throw new Error("Motoboy inválido.");
-    const { error } = await supabase.rpc("mb_registrar_pagamento", {
+    const forma = texto(fd, "forma") === "dinheiro" ? "dinheiro" : "pix";
+    const { data: id, error } = await supabase.rpc("mb_registrar_pagamento", {
       p_motoboy: motoboy,
       p_data: dataDoForm(fd),
       p_observacao: textoOuNulo(fd, "observacao"),
     });
     falhou(error);
+    if (forma !== "pix") falhou((await supabase.from("mb_pagamentos").update({ forma }).eq("id", String(id))).error);
   }, "Pagamento registrado. O motoboy já vê no app.");
 }
 
@@ -396,7 +427,12 @@ export async function salvarConfig(fd: FormData) {
     const ant = inteiroOuNulo(fd, "checkin_antecedencia_min", "Antecedência") ?? 120;
     const { error } = await supabase
       .from("mb_config")
-      .update({ troca_automatica: marcado(fd, "troca_automatica"), checkin_antecedencia_min: ant, updated_at: new Date().toISOString() })
+      .update({
+        troca_automatica: marcado(fd, "troca_automatica"),
+        qr_obrigatorio: marcado(fd, "qr_obrigatorio"),
+        checkin_antecedencia_min: ant,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", "padrao");
     falhou(error);
   }, "Configuração salva.");

@@ -4,7 +4,7 @@ import { VisaoDia } from "@/components/VisaoDia";
 import { exigirGestor } from "@/lib/auth";
 import { hojeISO } from "@/lib/datas";
 import type { Dia } from "@/lib/tipos";
-import { admChegada, admCorrigir, admEntregas, admOcorrencia, admRemover } from "./actions";
+import { admChegada, admCorrigir, admDinheiro, admEntregas, admOcorrencia, admRemover } from "./actions";
 
 export default async function AdminDia({ searchParams }: { searchParams: ParamsPagina }) {
   const sp = await searchParams;
@@ -26,7 +26,12 @@ export default async function AdminDia({ searchParams }: { searchParams: ParamsP
 
   return (
     <>
-      <h1>Escala do dia</h1>
+      <div className="linha entre" style={{ flexWrap: "wrap", gap: 8 }}>
+        <h1>Escala do dia</h1>
+        <Link href="/admin/qr" className="botao primario">
+          📱 QR de chegada
+        </Link>
+      </div>
       <Mensagens erro={sp.erro ?? error?.message} ok={sp.ok} />
       {(trocasPendentes ?? 0) > 0 && (
         <div className="aviso">
@@ -46,7 +51,7 @@ export default async function AdminDia({ searchParams }: { searchParams: ParamsP
           dia={dia as Dia}
           base="/admin"
           hoje={hoje}
-          acoes={{ chegada: admChegada, entregas: admEntregas, ocorrencia: admOcorrencia, corrigir: admCorrigir, remover: admRemover }}
+          acoes={{ chegada: admChegada, entregas: admEntregas, ocorrencia: admOcorrencia, corrigir: admCorrigir, remover: admRemover, dinheiro: admDinheiro }}
         />
       )}
     </>

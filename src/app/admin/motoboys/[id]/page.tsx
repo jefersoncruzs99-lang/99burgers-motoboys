@@ -30,7 +30,7 @@ export default async function Dossie({ params }: { params: Promise<{ id: string 
     supabase
       .from("mb_registros")
       .select(
-        "id, data, turno, chegada_em, faixa, valor_diaria, valor_entregas, qtd_entregas, origem_chegada, registrado_por, fora_da_escala, termo_aceito_em, ip, user_agent, entregas_lancadas_por, observacao, pagamento_id, mb_documentos(versao)",
+        "id, data, turno, chegada_em, faixa, valor_diaria, valor_entregas, qtd_entregas, origem_chegada, registrado_por, fora_da_escala, termo_aceito_em, ip, user_agent, entregas_lancadas_por, observacao, pagamento_id, qr_validado, mb_documentos(versao)",
       )
       .eq("motoboy_id", id)
       .order("data", { ascending: false })
@@ -156,6 +156,7 @@ export default async function Dossie({ params }: { params: Promise<{ id: string 
                   </td>
                   <td className="pequeno">
                     {r.origem_chegada === "motoboy" ? "O próprio prestador (app)" : r.registrado_por}
+                    {r.qr_validado && <div style={{ color: "var(--verde)" }}>✔ Presença validada por QR da loja</div>}
                     {r.observacao && <div className="muted">{r.observacao}</div>}
                   </td>
                   <td className="pequeno">
@@ -253,7 +254,13 @@ export default async function Dossie({ params }: { params: Promise<{ id: string 
             <tbody>
               {(pags ?? []).map((p) => (
                 <tr key={p.id}>
-                  <td>{dataComDia(p.data_pagamento)}</td>
+                  <td>
+                    {dataComDia(p.data_pagamento)}
+                    <div className="muted pequeno">
+                      {p.forma === "dinheiro" ? "Dinheiro" : "PIX"}
+                      {p.observacao ? ` · ${p.observacao}` : ""}
+                    </div>
+                  </td>
                   <td>{moeda(p.diarias)}</td>
                   <td>{moeda(p.entregas)}</td>
                   <td>{moeda(p.ajustes)}</td>

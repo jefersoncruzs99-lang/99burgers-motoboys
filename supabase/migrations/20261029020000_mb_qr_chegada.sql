@@ -1,4 +1,4 @@
--- PENDENTE: ainda não aplicada no Supabase (aguardando confirmação do usuário).
+-- JÁ APLICADA no Supabase em 2026-10-29.
 -- Chegada presencial com QR code que muda a cada 30 segundos (mostrado pelo gestor de rota ou num tablet da loja).
 -- O QR leva a /m/cheguei?c=CODIGO; ao abrir, o código vira um "ticket" de 10 minutos para o motoboy ler o termo e confirmar.
 
@@ -73,9 +73,8 @@ begin
   return v_t;
 end $$;
 
--- Chegada: agora pede o ticket do QR quando a loja exige QR
-drop function if exists public.mb_m_chegar(uuid, text, text, boolean, text, text);
-create or replace function public.mb_m_chegar(p_id uuid, p_chave text, p_turno text, p_aceite boolean, p_ip text, p_ua text, p_ticket uuid default null)
+-- Chegada com ticket do QR (a função antiga mb_m_chegar passa a chamar esta, sem ticket)
+create or replace function public.mb_m_chegar_qr(p_id uuid, p_chave text, p_turno text, p_aceite boolean, p_ip text, p_ua text, p_ticket uuid)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_hoje date := public.mb_hoje(); v_agora timestamptz := now(); v_t public.mb_turnos; v_cfg public.mb_config;
   v_local time := (now() at time zone 'America/Bahia')::time; v_contrato uuid; v_termo uuid; v_esc uuid; v_faixa smallint;
@@ -116,6 +115,10 @@ begin
   return jsonb_build_object('faixa', v_r.faixa, 'valor_diaria', v_r.valor_diaria, 'chegada_em', v_r.chegada_em, 'fora_da_escala', v_r.fora_da_escala);
 end $$;
 
+create or replace function public.mb_m_chegar(p_id uuid, p_chave text, p_turno text, p_aceite boolean, p_ip text, p_ua text) returns jsonb
+language sql security definer set search_path = '' as $$
+  select public.mb_m_chegar_qr(p_id, p_chave, p_turno, p_aceite, p_ip, p_ua, null) $$;
+
 -- Admin troca o segredo (invalida qualquer QR antigo)
 create or replace function public.mb_a_novo_segredo_qr() returns void
 language plpgsql security definer set search_path = '' as $$
@@ -135,7 +138,7 @@ begin
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
   foreach f in array array['mb_r_qr(uuid, text)','mb_m_ler_qr(uuid, text, text, text)',
-                           'mb_m_chegar(uuid, text, text, boolean, text, text, uuid)'] loop
+                           'mb_m_chegar_qr(uuid, text, text, boolean, text, text, uuid)'] loop
     execute format('revoke all on function public.%s from public', f);
     execute format('grant execute on function public.%s to anon, authenticated', f);
   end loop;
