@@ -103,6 +103,10 @@ export default async function AdminConfig({ searchParams }: { searchParams: Para
                 <input type="time" name="limite_meio" defaultValue={hhmm(t.limite_meio)} required />
               </div>
             </div>
+            <label className="check">
+              <input type="checkbox" name="feriado_como_domingo" defaultChecked={t.feriado_como_domingo} /> No feriado, este turno usa a escala de
+              domingo (desmarcado: segue a escala normal do dia da semana)
+            </label>
             <button className="botao">Salvar {t.nome}</button>
           </form>
         ))}

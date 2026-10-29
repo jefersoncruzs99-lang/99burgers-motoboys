@@ -371,6 +371,7 @@ export async function salvarTurno(fd: FormData) {
         fim: exigir(texto(fd, "fim"), "Fim"),
         limite_cheia: exigir(texto(fd, "limite_cheia"), "Limite da diária cheia"),
         limite_meio: exigir(texto(fd, "limite_meio"), "Limite de 2/3"),
+        feriado_como_domingo: marcado(fd, "feriado_como_domingo"),
       })
       .eq("codigo", codigo);
     falhou(error);
