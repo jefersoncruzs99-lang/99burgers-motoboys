@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Mensagens, type ParamsPagina } from "@/components/Mensagens";
 import { exigirGestor } from "@/lib/auth";
 import { NOMES_DIA_CURTO, dataCurta, diaDaSemana, hojeISO, segundaDaSemana, somarDias } from "@/lib/datas";
+import { AdicionarVarios } from "@/components/AdicionarVarios";
 import { addEscala, gerarSemana, refazerDia, removerEscala } from "../actions";
 
 export default async function AdminEscala({ searchParams }: { searchParams: ParamsPagina }) {
@@ -93,24 +94,17 @@ export default async function AdminEscala({ searchParams }: { searchParams: Para
                         );
                       })}
                     </div>
-                    {livres.length > 0 && (
-                      <form action={addEscala} className="add-chip">
-                        <input type="hidden" name="data" value={d} />
-                        <input type="hidden" name="turno" value={t.codigo} />
-                        <input type="hidden" name="volta" value={voltaUrl} />
-                        <select name="motoboy_id" defaultValue="" required aria-label="Adicionar motoboy">
-                          <option value="" disabled>
-                            + adicionar
-                          </option>
-                          {livres.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.nome}
-                            </option>
-                          ))}
-                        </select>
-                        <button className="botao">OK</button>
-                      </form>
-                    )}
+                    <AdicionarVarios
+                      acao={addEscala}
+                      livres={livres}
+                      ocultos={{ data: d, turno: t.codigo, volta: voltaUrl }}
+                      dias={{
+                        campo: "datas",
+                        opcoes: dias
+                          .filter((x) => x >= hoje)
+                          .map((x) => ({ valor: x, rotulo: `${NOMES_DIA_CURTO[diaDaSemana(x)]} ${dataCurta(x)}`, marcado: x === d })),
+                      }}
+                    />
                   </div>
                 );
               })}

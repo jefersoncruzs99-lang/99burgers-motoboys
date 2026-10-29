@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Mensagens, type ParamsPagina } from "@/components/Mensagens";
 import { exigirGestor } from "@/lib/auth";
 import { NOMES_DIA } from "@/lib/datas";
+import { AdicionarVarios } from "@/components/AdicionarVarios";
 import { addPadrao, removerPadrao } from "../../actions";
 
 const ORDEM = [1, 2, 3, 4, 5, 6, 0];
@@ -53,23 +54,15 @@ export default async function AdminPadrao({ searchParams }: { searchParams: Para
                       );
                     })}
                   </div>
-                  {livres.length > 0 && (
-                    <form action={addPadrao} className="add-chip">
-                      <input type="hidden" name="dia_semana" value={dow} />
-                      <input type="hidden" name="turno" value={t.codigo} />
-                      <select name="motoboy_id" defaultValue="" required aria-label="Adicionar motoboy">
-                        <option value="" disabled>
-                          + adicionar
-                        </option>
-                        {livres.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <button className="botao">OK</button>
-                    </form>
-                  )}
+                  <AdicionarVarios
+                    acao={addPadrao}
+                    livres={livres}
+                    ocultos={{ dia_semana: String(dow), turno: t.codigo }}
+                    dias={{
+                      campo: "dias",
+                      opcoes: ORDEM.map((x) => ({ valor: String(x), rotulo: NOMES_DIA[x].slice(0, 3), marcado: x === dow })),
+                    }}
+                  />
                 </div>
               );
             })}

@@ -105,15 +105,31 @@ export async function admOcorrencia(fd: FormData) {
 
 // ===================== ESCALA =====================
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Todos os motoboys marcados no formulário (caixinhas com name="motoboy_id"). */
+function motoboysMarcados(fd: FormData): string[] {
+  const ids = fd.getAll("motoboy_id").filter((v): v is string => typeof v === "string" && UUID.test(v));
+  if (!ids.length) throw new Error("Marque pelo menos um motoboy.");
+  return [...new Set(ids)];
+}
+
 export async function addEscala(fd: FormData) {
   await executar(volta(fd, "/admin/escala"), async () => {
     const { supabase } = await exigirGestor();
-    const motoboy = uuidOuNulo(fd, "motoboy_id");
-    if (!motoboy) throw new Error("Escolha o motoboy.");
-    const { error } = await supabase
+    const ids = motoboysMarcados(fd);
+    const turno = exigir(texto(fd, "turno"), "Turno");
+    const marcadas = fd.getAll("datas").filter((v): v is string => typeof v === "string" && DATA.test(v));
+    const datas = marcadas.length ? [...new Set(marcadas)] : [dataDoForm(fd)];
+    const linhas = datas.flatMap((data) => ids.map((motoboy_id) => ({ data, turno, motoboy_id, origem: "manual" })));
+    const { data, error } = await supabase
       .from("mb_escala")
-      .insert({ data: dataDoForm(fd), turno: exigir(texto(fd, "turno"), "Turno"), motoboy_id: motoboy, origem: "manual" });
+      .upsert(linhas, { onConflict: "data,turno,motoboy_id", ignoreDuplicates: true })
+      .select("id");
     falhou(error);
+    const n = data?.length ?? 0;
+    const repetidos = linhas.length - n;
+    return `${n} lugar(es) adicionado(s) na escala.${repetidos > 0 ? ` ${repetidos} já estava(m) lá e foi(ram) ignorado(s).` : ""}`;
   });
 }
 
@@ -152,13 +168,22 @@ export async function refazerDia(fd: FormData) {
 export async function addPadrao(fd: FormData) {
   await executar("/admin/escala/padrao", async () => {
     const { supabase } = await exigirGestor();
-    const motoboy = uuidOuNulo(fd, "motoboy_id");
+    const ids = motoboysMarcados(fd);
+    const turno = exigir(texto(fd, "turno"), "Turno");
+    const marcados = fd
+      .getAll("dias")
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
     const dow = inteiroOuNulo(fd, "dia_semana");
-    if (!motoboy || dow === null || dow > 6) throw new Error("Escolha o motoboy.");
-    const { error } = await supabase
+    const dias = marcados.length ? [...new Set(marcados)] : dow !== null && dow <= 6 ? [dow] : [];
+    if (!dias.length) throw new Error("Escolha o dia.");
+    const linhas = dias.flatMap((dia_semana) => ids.map((motoboy_id) => ({ dia_semana, turno, motoboy_id })));
+    const { data, error } = await supabase
       .from("mb_escala_padrao")
-      .insert({ dia_semana: dow, turno: exigir(texto(fd, "turno"), "Turno"), motoboy_id: motoboy });
+      .upsert(linhas, { onConflict: "dia_semana,turno,motoboy_id", ignoreDuplicates: true })
+      .select("id");
     falhou(error);
+    return `${data?.length ?? 0} lugar(es) adicionado(s) na semana padrão.`;
   });
 }
 
