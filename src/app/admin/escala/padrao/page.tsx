@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Mensagens, type ParamsPagina } from "@/components/Mensagens";
 import { exigirGestor } from "@/lib/auth";
-import { NOMES_DIA } from "@/lib/datas";
+import { NOMES_DIA, NOMES_DIA_CURTO } from "@/lib/datas";
 import { AdicionarVarios } from "@/components/AdicionarVarios";
 import { addPadrao, removerPadrao } from "../../actions";
 
@@ -60,7 +60,7 @@ export default async function AdminPadrao({ searchParams }: { searchParams: Para
                     ocultos={{ dia_semana: String(dow), turno: t.codigo }}
                     dias={{
                       campo: "dias",
-                      opcoes: ORDEM.map((x) => ({ valor: String(x), rotulo: NOMES_DIA[x].slice(0, 3), marcado: x === dow })),
+                      opcoes: ORDEM.map((x) => ({ valor: String(x), rotulo: NOMES_DIA_CURTO[x] ?? "", marcado: x === dow })),
                     }}
                   />
                 </div>
