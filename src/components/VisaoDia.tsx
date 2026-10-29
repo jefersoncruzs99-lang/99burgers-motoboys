@@ -10,6 +10,8 @@ export interface AcoesDia {
   chegada: Acao;
   entregas: Acao;
   ocorrencia: Acao;
+  /** só na administração: excluir intercorrência */
+  excluirOcorrencia?: Acao;
   /** pagar o turno em dinheiro na hora */
   dinheiro?: Acao;
   /** só na administração */
@@ -238,6 +240,18 @@ export function VisaoDia({ dia, base, acoes, hoje, minData }: { dia: Dia; base: 
                   </span>
                   {o.status !== "valida" && <span className="selo ama" style={{ marginLeft: 6 }}>{ROTULO_STATUS_OCORRENCIA[o.status]}</span>}
                   {o.ciente_em && o.status === "valida" && <span className="selo ok" style={{ marginLeft: 6 }}>Motoboy ciente</span>}
+                  {acoes.excluirOcorrencia && (
+                    <details style={{ display: "inline-block", marginLeft: 8 }}>
+                      <summary className="muted pequeno" style={{ cursor: "pointer", textDecoration: "underline" }}>
+                        excluir
+                      </summary>
+                      <form action={acoes.excluirOcorrencia} className="mini" style={{ marginTop: 6 }}>
+                        <input type="hidden" name="data" value={dia.data} />
+                        <input type="hidden" name="ocorrencia_id" value={o.id} />
+                        <button className="botao perigo">Confirmar exclusão</button>
+                      </form>
+                    </details>
+                  )}
                 </div>
               ))}
               <details>

@@ -117,6 +117,17 @@ export async function novoSegredoQr() {
   }, "Novo segredo gerado: qualquer QR antigo parou de funcionar.");
 }
 
+export async function admExcluirOcorrencia(fd: FormData) {
+  await executar(voltaDia(fd), async () => {
+    const { supabase } = await exigirGestor();
+    const id = uuidOuNulo(fd, "ocorrencia_id");
+    if (!id) throw new Error("Intercorrência inválida.");
+    const { data, error } = await supabase.from("mb_ocorrencias").delete().eq("id", id).select("id");
+    falhou(error);
+    if (!data?.length) throw new Error("Intercorrência não encontrada.");
+  }, "Intercorrência excluída. Os pontos voltaram para o motoboy.");
+}
+
 export async function admOcorrencia(fd: FormData) {
   await executar(voltaDia(fd), async () => {
     const { supabase, nome } = await exigirGestor();

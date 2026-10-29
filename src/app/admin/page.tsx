@@ -4,7 +4,7 @@ import { VisaoDia } from "@/components/VisaoDia";
 import { exigirGestor } from "@/lib/auth";
 import { hojeISO } from "@/lib/datas";
 import type { Dia } from "@/lib/tipos";
-import { admChegada, admCorrigir, admDinheiro, admEntregas, admOcorrencia, admRemover } from "./actions";
+import { admChegada, admCorrigir, admDinheiro, admEntregas, admExcluirOcorrencia, admOcorrencia, admRemover } from "./actions";
 
 export default async function AdminDia({ searchParams }: { searchParams: ParamsPagina }) {
   const sp = await searchParams;
@@ -51,7 +51,7 @@ export default async function AdminDia({ searchParams }: { searchParams: ParamsP
           dia={dia as Dia}
           base="/admin"
           hoje={hoje}
-          acoes={{ chegada: admChegada, entregas: admEntregas, ocorrencia: admOcorrencia, corrigir: admCorrigir, remover: admRemover, dinheiro: admDinheiro }}
+          acoes={{ chegada: admChegada, entregas: admEntregas, ocorrencia: admOcorrencia, corrigir: admCorrigir, remover: admRemover, dinheiro: admDinheiro, excluirOcorrencia: admExcluirOcorrencia }}
         />
       )}
     </>
