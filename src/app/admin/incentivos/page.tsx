@@ -23,7 +23,7 @@ export default async function AdminIncentivos({ searchParams }: { searchParams: 
       .select("id, descricao, valor, criado_em, ajuste_id, mb_motoboys(nome)")
       .order("criado_em", { ascending: false })
       .limit(30),
-    supabase.from("mb_config").select("pontos_por_entrega, prazo_contestacao_dias").maybeSingle(),
+    supabase.from("mb_config").select("pontos_por_entrega, prazo_contestacao_dias, pontos_domingo, pontos_feriado").maybeSingle(),
   ]);
 
   return (
@@ -89,10 +89,21 @@ export default async function AdminIncentivos({ searchParams }: { searchParams: 
           Negativo tira pontos, positivo dá pontos, zero é só registro (como falta e atraso). Pontos nunca viram desconto em dinheiro. Mudar aqui vale só para
           os próximos registros.
         </p>
+        <p className="muted pequeno" style={{ margin: 0 }}>
+          Domingo e feriado contam sozinhos para quem trabalhou (por turno; manhã e noite contam separado). Feriado no domingo vale o maior.
+        </p>
         <form action={salvarPontuacao} className="campos bloco">
           <div className="campo">
             <label>Pontos por entrega</label>
             <input name="pontos_por_entrega" inputMode="numeric" defaultValue={config?.pontos_por_entrega ?? 1} />
+          </div>
+          <div className="campo">
+            <label>Pontos por turno trabalhado no domingo</label>
+            <input name="pontos_domingo" inputMode="numeric" defaultValue={config?.pontos_domingo ?? 0} />
+          </div>
+          <div className="campo">
+            <label>Pontos por turno trabalhado no feriado</label>
+            <input name="pontos_feriado" inputMode="numeric" defaultValue={config?.pontos_feriado ?? 0} />
           </div>
           <div className="campo">
             <label>Prazo para contestar (dias)</label>

@@ -122,6 +122,7 @@ export interface ItemRanking {
   pontos: number;
   turnos?: number;
   pontos_ocorrencias?: number;
+  pontos_bonus?: number;
 }
 
 export interface DadosRanking {

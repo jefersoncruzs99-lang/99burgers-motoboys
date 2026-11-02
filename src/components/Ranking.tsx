@@ -149,8 +149,7 @@ export function Ranking({ dados, base, voltar }: { dados: DadosRanking; base: st
         <h1>{nomePeriodo(dados.periodo, dados.inicio)}</h1>
         {nomeTurno && <div className="selo-turno">{dados.turno === "manha" ? "☀️" : "🌙"} Turno da {nomeTurno.toLowerCase()}</div>}
         <p className="muted">
-          {dados.inicio.split("-").reverse().join("/")} a {dados.fim.split("-").reverse().join("/")} · 1 entrega = 1 ponto, intercorrências somam ou
-          tiram
+          {dados.inicio.split("-").reverse().join("/")} a {dados.fim.split("-").reverse().join("/")} · 1 entrega = 1 ponto · domingo e feriado dão bônus · intercorrências somam ou tiram
         </p>
       </header>
 

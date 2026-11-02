@@ -26,6 +26,7 @@ export default async function RankingAdmin({ searchParams }: { searchParams: Par
                   <th>Turnos</th>
                   <th>Entregas</th>
                   <th>Intercorrências</th>
+                  <th>Domingo/feriado</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -37,6 +38,7 @@ export default async function RankingAdmin({ searchParams }: { searchParams: Par
                     <td>{i.turnos}</td>
                     <td>{i.entregas}</td>
                     <td>{i.pontos_ocorrencias}</td>
+                    <td>{i.pontos_bonus ? `+${i.pontos_bonus}` : 0}</td>
                     <td>
                       <strong>{i.pontos}</strong>
                     </td>

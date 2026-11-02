@@ -615,7 +615,13 @@ export async function salvarPontuacao(fd: FormData) {
     const { supabase } = await exigirGestor();
     const pts = inteiroOuNulo(fd, "pontos_por_entrega", "Pontos por entrega") ?? 1;
     const prazo = inteiroOuNulo(fd, "prazo_contestacao_dias", "Prazo") ?? 7;
-    const { error } = await supabase.from("mb_config").update({ pontos_por_entrega: pts, prazo_contestacao_dias: prazo }).eq("id", "padrao");
+    const dom = inteiroOuNulo(fd, "pontos_domingo", "Pontos por turno no domingo") ?? 0;
+    const fer = inteiroOuNulo(fd, "pontos_feriado", "Pontos por turno no feriado") ?? 0;
+    if (dom > 100 || fer > 100) throw new Error("Use no máximo 100 pontos.");
+    const { error } = await supabase
+      .from("mb_config")
+      .update({ pontos_por_entrega: pts, prazo_contestacao_dias: prazo, pontos_domingo: dom, pontos_feriado: fer })
+      .eq("id", "padrao");
     falhou(error);
   }, "Regras de pontuação salvas.");
 }
