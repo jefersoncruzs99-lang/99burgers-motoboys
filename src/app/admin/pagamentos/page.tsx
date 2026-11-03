@@ -1,29 +1,34 @@
 import { Mensagens, type ParamsPagina } from "@/components/Mensagens";
 import { exigirGestor } from "@/lib/auth";
-import { dataComDia, hojeISO, moeda } from "@/lib/datas";
-import { ROTULO_FORMA, type EmAberto, type FormaPagamento } from "@/lib/tipos";
+import { ROTULO_FAIXA, dataComDia, hojeISO, hora, moeda } from "@/lib/datas";
+import { ROTULO_FORMA, ROTULO_TURNO, type FormaPagamento, type Turno } from "@/lib/tipos";
 import { addAjuste, desfazerPagamento, pagar, removerAjuste } from "../actions";
 
-interface Linha {
+type Item =
+  | { tipo: "turno"; id: string; data: string; turno: Turno; chegada_em: string; faixa: number; valor_diaria: number; valor_entregas: number; qtd_entregas: number }
+  | { tipo: "ajuste"; id: string; data: string; valor: number; motivo: string };
+
+interface Grupo {
+  data_pagamento: string;
   motoboy_id: string;
   nome: string;
   pix: string | null;
   forma_pagamento: FormaPagamento;
-  ativo: boolean;
-  data_pagamento: string;
-  aberto: EmAberto;
-  tudo: EmAberto;
+  diarias: number;
+  entregas: number;
+  ajustes: number;
+  total: number;
+  dias: number;
   sem_entregas: number;
+  itens: Item[];
 }
-
-const total = (a: EmAberto) => Number(a.diarias) + Number(a.entregas) + Number(a.ajustes);
 
 export default async function AdminPagamentos({ searchParams }: { searchParams: ParamsPagina }) {
   const sp = await searchParams;
   const { supabase } = await exigirGestor();
   const hoje = hojeISO();
-  const [{ data: resumo, error }, { data: ajustes }, { data: historico }, { data: motoboys }] = await Promise.all([
-    supabase.rpc("mb_a_resumo_pagamentos"),
+  const [{ data: periodos, error }, { data: ajustes }, { data: historico }, { data: motoboys }] = await Promise.all([
+    supabase.rpc("mb_a_pagamentos_periodos"),
     supabase.from("mb_ajustes").select("id, data, valor, motivo, mb_motoboys(nome)").is("pagamento_id", null).order("data"),
     supabase
       .from("mb_pagamentos")
@@ -32,82 +37,155 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
       .limit(40),
     supabase.from("mb_motoboys").select("id, nome").eq("ativo", true).order("nome"),
   ]);
-  const linhas = ((resumo as Linha[] | null) ?? []).filter((l) => l.tudo.dias > 0 || total(l.tudo) !== 0 || l.ativo);
-  const datas = [...new Set(linhas.map((l) => l.data_pagamento))].sort();
+  const grupos = (periodos as Grupo[] | null) ?? [];
+  const datas = [...new Set(grupos.map((g) => g.data_pagamento))].sort();
   const nomeDe = (x: unknown) => (x as { nome: string } | null)?.nome ?? "?";
+  const atrasado = grupos.filter((g) => g.data_pagamento < hoje).reduce((s, g) => s + Number(g.total), 0);
+  const deHoje = grupos.filter((g) => g.data_pagamento === hoje).reduce((s, g) => s + Number(g.total), 0);
+  const futuro = grupos.filter((g) => g.data_pagamento > hoje).reduce((s, g) => s + Number(g.total), 0);
 
   return (
     <>
       <h1>Pagamentos</h1>
       <Mensagens erro={sp.erro ?? error?.message} ok={sp.ok} />
-      <p className="muted">
-        Cada pagamento inclui os dias <strong>antes</strong> da data do pagamento. Quinzenal: dias 1 e 16. Semanal: quarta-feira.
+      <div className="numeros">
+        <div className={`cartao ${atrasado > 0 ? "alerta" : ""}`}>
+          <span className="muted">⚠️ Atrasado (não marcado como pago)</span>
+          <b className="grande-valor" style={{ color: atrasado > 0 ? "var(--vermelho)" : undefined }}>
+            {moeda(atrasado)}
+          </b>
+        </div>
+        <div className="cartao destaque">
+          <span className="muted">Pagar hoje</span>
+          <b className="grande-valor">{moeda(deHoje)}</b>
+        </div>
+        <div className="cartao">
+          <span className="muted">Acumulando para as próximas datas</span>
+          <b className="grande-valor" style={{ color: "var(--branco)" }}>
+            {moeda(futuro)}
+          </b>
+        </div>
+      </div>
+      <p className="muted pequeno">
+        Cada turno vai para a primeira data de pagamento depois dele: quinzenal nos dias 1 e 16, semanal na quarta. Toque no nome para ver turno por
+        turno. &quot;Marcar pago&quot; paga só o período daquele bloco.
       </p>
+      {datas.length === 0 && <div className="ok">Nenhum valor em aberto. Tudo pago! ✅</div>}
 
       {datas.map((d) => {
-        const doDia = linhas.filter((l) => l.data_pagamento === d);
-        const soma = doDia.reduce((s, l) => s + total(l.aberto), 0);
+        const doDia = grupos.filter((g) => g.data_pagamento === d);
+        const soma = doDia.reduce((s, g) => s + Number(g.total), 0);
+        const status = d < hoje ? "atrasado" : d === hoje ? "hoje" : "futuro";
         return (
-          <section key={d} className={`cartao pilha ${d <= hoje ? "destaque" : ""}`}>
-            <div className="linha entre" style={{ flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0 }}>
-                {d === hoje ? "Pagar hoje" : d < hoje ? "Atrasado" : "Próximo pagamento"} · {dataComDia(d)}
-              </h2>
-              <strong className="grande-valor" style={{ fontSize: "1.5rem" }}>
+          <section key={d} className={`cartao pilha pag-bloco pag-${status}`}>
+            <div className="linha entre" style={{ flexWrap: "wrap", gap: 8 }}>
+              <div>
+                <span className={`selo ${status === "atrasado" ? "falta" : status === "hoje" ? "ama" : ""}`}>
+                  {status === "atrasado" ? "⚠️ Atrasado: venceu em" : status === "hoje" ? "💸 Pagar hoje" : "📅 Próximo pagamento"}
+                </span>
+                <h2 style={{ margin: "6px 0 0" }}>{dataComDia(d)}</h2>
+                <span className="muted pequeno">{doDia.length} motoboy(s)</span>
+              </div>
+              <strong className="grande-valor" style={{ fontSize: "1.6rem" }}>
                 {moeda(soma)}
               </strong>
             </div>
-            <div className="tabela-rolagem">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Motoboy</th>
-                    <th>Turnos</th>
-                    <th>Diárias</th>
-                    <th>Entregas</th>
-                    <th>Ajustes</th>
-                    <th>Total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {doDia.map((l) => (
-                    <tr key={l.motoboy_id}>
-                      <td>
-                        <strong>{l.nome}</strong>
-                        <div className="muted pequeno">
-                          {ROTULO_FORMA[l.forma_pagamento]}
-                          {l.pix && <> · PIX {l.pix}</>}
-                        </div>
-                        {l.sem_entregas > 0 && <div className="pequeno" style={{ color: "var(--amarelo)" }}>{l.sem_entregas} turno(s) sem entregas lançadas</div>}
-                        {total(l.tudo) !== total(l.aberto) && (
-                          <div className="muted pequeno">Já acumulando para o próximo: {moeda(total(l.tudo) - total(l.aberto))}</div>
+            <div className="pilha" style={{ gap: 8 }}>
+              {doDia.map((g) => (
+                <div key={g.motoboy_id} className="pag-linha">
+                  <details className="pag-detalhe">
+                    <summary>
+                      <span className="pag-nome">
+                        <strong>{g.nome}</strong>
+                        <span className="muted pequeno">
+                          {ROTULO_FORMA[g.forma_pagamento]}
+                          {g.pix && <> · PIX {g.pix}</>} · {g.dias} turno(s)
+                        </span>
+                        {g.sem_entregas > 0 && (
+                          <span className="pequeno" style={{ color: "var(--amarelo)" }}>
+                            {g.sem_entregas} turno(s) sem entregas lançadas
+                          </span>
                         )}
-                      </td>
-                      <td>{l.aberto.dias}</td>
-                      <td>{moeda(l.aberto.diarias)}</td>
-                      <td>{moeda(l.aberto.entregas)}</td>
-                      <td>{moeda(l.aberto.ajustes)}</td>
-                      <td>
-                        <strong>{moeda(total(l.aberto))}</strong>
-                      </td>
-                      <td>
-                        {(l.aberto.dias > 0 || Number(l.aberto.ajustes) !== 0) && (
-                          <form action={pagar} className="mini">
-                            <input type="hidden" name="motoboy_id" value={l.motoboy_id} />
-                            <input type="hidden" name="data" value={d} />
-                            <select name="forma" defaultValue="pix" aria-label="Forma de pagamento" style={{ minHeight: 38 }}>
-                              <option value="pix">PIX</option>
-                              <option value="dinheiro">Dinheiro</option>
-                            </select>
-                            <button className="botao sucesso">Marcar pago</button>
-                          </form>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                      <strong className="pag-total">{moeda(g.total)}</strong>
+                    </summary>
+                    <div className="tabela-rolagem">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th>Turno</th>
+                            <th>Chegada</th>
+                            <th>Diária</th>
+                            <th>Entregas</th>
+                            <th>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.itens.map((it) =>
+                            it.tipo === "turno" ? (
+                              <tr key={it.id}>
+                                <td>{dataComDia(it.data)}</td>
+                                <td>{ROTULO_TURNO[it.turno] ?? it.turno}</td>
+                                <td>
+                                  {hora(it.chegada_em)}
+                                  <div className="muted pequeno">{ROTULO_FAIXA[it.faixa]}</div>
+                                </td>
+                                <td>{moeda(it.valor_diaria)}</td>
+                                <td>
+                                  {Number(it.valor_entregas) > 0 || it.qtd_entregas > 0 ? (
+                                    <>
+                                      {moeda(it.valor_entregas)}
+                                      <div className="muted pequeno">{it.qtd_entregas} entrega(s)</div>
+                                    </>
+                                  ) : (
+                                    <span style={{ color: "var(--amarelo)" }}>a lançar</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <strong>{moeda(Number(it.valor_diaria) + Number(it.valor_entregas))}</strong>
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr key={it.id}>
+                                <td>{dataComDia(it.data)}</td>
+                                <td colSpan={4}>
+                                  {Number(it.valor) < 0 ? "Desconto / vale" : "Bônus"}: {it.motivo}
+                                </td>
+                                <td>
+                                  <strong style={{ color: Number(it.valor) < 0 ? "var(--vermelho)" : "var(--verde)" }}>{moeda(it.valor)}</strong>
+                                </td>
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={3}>
+                              <strong>Total</strong>
+                            </td>
+                            <td>{moeda(g.diarias)}</td>
+                            <td>{moeda(g.entregas)}</td>
+                            <td>
+                              <strong>{moeda(g.total)}</strong>
+                              {Number(g.ajustes) !== 0 && <div className="muted pequeno">ajustes {moeda(g.ajustes)}</div>}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </details>
+                  <form action={pagar} className="mini pag-pagar">
+                    <input type="hidden" name="motoboy_id" value={g.motoboy_id} />
+                    <input type="hidden" name="data" value={d} />
+                    <select name="forma" defaultValue="pix" aria-label="Forma de pagamento" style={{ minHeight: 38 }}>
+                      <option value="pix">PIX</option>
+                      <option value="dinheiro">Dinheiro</option>
+                    </select>
+                    <button className="botao sucesso">Marcar pago</button>
+                  </form>
+                </div>
+              ))}
             </div>
           </section>
         );

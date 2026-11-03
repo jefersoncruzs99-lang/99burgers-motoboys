@@ -352,3 +352,17 @@ th { color: var(--cinza); font-size: .85rem; font-weight: 600; }
   .esc-turnos { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .esc-turno, .esc-boy, .esc-conta, .esc-ico { animation: none; } }
+
+/* ===== Pagamentos por período ===== */
+.pag-bloco.pag-atrasado { border-color: var(--vermelho); background: linear-gradient(180deg, rgba(239,68,68,.08), var(--fundo-2) 120px); }
+.pag-bloco.pag-hoje { border-color: var(--amarelo); }
+.pag-linha { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; background: var(--fundo-3); border: 1px solid var(--borda); border-radius: 14px; padding: 8px 10px; }
+.pag-detalhe { flex: 1; min-width: 240px; }
+.pag-detalhe > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; }
+.pag-detalhe > summary::-webkit-details-marker { display: none; }
+.pag-detalhe > summary::before { content: "▸"; color: var(--cinza); transition: transform .2s; }
+.pag-detalhe[open] > summary::before { transform: rotate(90deg); }
+.pag-nome { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pag-total { font-size: 1.15rem; color: var(--amarelo); white-space: nowrap; }
+.pag-detalhe[open] .tabela-rolagem { margin-top: 8px; animation: entra .3s ease-out both; }
+.pag-pagar { align-self: center; }
