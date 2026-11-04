@@ -29,17 +29,36 @@ const STATUS_TROCA: Record<string, string> = {
   cancelada: "Cancelada",
 };
 
+interface PagamentoFeito {
+  id: string;
+  data: string;
+  forma: string;
+  diarias: number;
+  entregas: number;
+  ajustes: number;
+  total: number;
+  turnos: number;
+  qtd_entregas: number;
+  periodo_de: string | null;
+  periodo_ate: string | null;
+  itens_ajuste: { data: string; valor: number; motivo: string }[];
+}
+
 export default async function AreaMotoboy({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const acesso = await lerAcesso(COOKIE_MOTOBOY);
   let p: PainelMotoboy | null = null;
   let x: ExtraMotoboy | null = null;
+  let pags: PagamentoFeito[] = [];
   let falhou = false;
   if (acesso) {
     try {
       // primeiro o extra (lança prêmios de incentivo que já foram conquistados), depois o painel
       x = await rpcMotoboy<ExtraMotoboy>("mb_m_extra");
-      p = await rpcMotoboy<PainelMotoboy>("mb_m_painel");
+      [p, pags] = await Promise.all([
+        rpcMotoboy<PainelMotoboy>("mb_m_painel"),
+        rpcMotoboy<PagamentoFeito[]>("mb_m_pagamentos").catch(() => [] as PagamentoFeito[]),
+      ]);
     } catch (e) {
       falhou = !(e instanceof Error && e.message === "SEM_ACESSO");
     }
@@ -282,7 +301,8 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
         )}
         {p.pagamento.ajustes.length > 0 && (
           <div className="pilha">
-            <h3>Ajustes</h3>
+            <h3 style={{ margin: 0 }}>Vales, descontos e bônus</h3>
+            <span className="muted pequeno">Entram no próximo pagamento.</span>
             {p.pagamento.ajustes.map((a, i) => (
               <div key={i} className="linha entre">
                 <span>
@@ -293,20 +313,55 @@ export default async function AreaMotoboy({ searchParams }: { searchParams: Prom
             ))}
           </div>
         )}
-        {p.pagamento.historico.length > 0 && (
+        {pags.length > 0 && (
           <details>
-            <summary className="muted">Pagamentos anteriores</summary>
-            <ul className="pessoas">
-              {p.pagamento.historico.map((h, k) => (
-                <li key={k}>
-                  <span>
-                    {dataComDia(h.data)}
-                    {h.forma === "dinheiro" && <span className="muted pequeno"> · 💵 dinheiro</span>}
-                  </span>
-                  <strong>{moeda(h.total)}</strong>
-                </li>
+            <summary className="muted">Pagamentos anteriores (toque para ver o detalhe)</summary>
+            <div className="pilha" style={{ gap: 8, marginTop: 8 }}>
+              {pags.map((h) => (
+                <details key={h.id} className="pag-linha" style={{ display: "block" }}>
+                  <summary className="linha entre" style={{ cursor: "pointer", listStyle: "none" }}>
+                    <span>
+                      <strong>{dataComDia(h.data)}</strong>
+                      <span className="muted pequeno">
+                        {" "}
+                        · {h.forma === "dinheiro" ? "💵 dinheiro" : "PIX"}
+                        {Number(h.ajustes) < 0 && <span style={{ color: "var(--vermelho)" }}> · com desconto</span>}
+                      </span>
+                    </span>
+                    <strong>{moeda(h.total)}</strong>
+                  </summary>
+                  <div className="pilha" style={{ gap: 4, marginTop: 8 }}>
+                    {h.periodo_de && (
+                      <span className="muted pequeno">
+                        Turnos de {dataComDia(h.periodo_de)} a {dataComDia(h.periodo_ate ?? h.periodo_de)} · {h.turnos} turno(s) · {h.qtd_entregas}{" "}
+                        entrega(s)
+                      </span>
+                    )}
+                    <div className="linha entre">
+                      <span>Diárias</span>
+                      <span>{moeda(h.diarias)}</span>
+                    </div>
+                    <div className="linha entre">
+                      <span>Entregas</span>
+                      <span>{moeda(h.entregas)}</span>
+                    </div>
+                    {h.itens_ajuste.map((a, k) => (
+                      <div key={k} className="linha entre">
+                        <span>
+                          {Number(a.valor) < 0 ? "➖ Desconto/vale" : "➕ Bônus"}: {a.motivo}
+                          <span className="muted pequeno"> · {dataComDia(a.data)}</span>
+                        </span>
+                        <strong style={{ color: Number(a.valor) < 0 ? "var(--vermelho)" : "var(--verde)" }}>{moeda(a.valor)}</strong>
+                      </div>
+                    ))}
+                    <div className="linha entre" style={{ borderTop: "1px solid var(--borda)", paddingTop: 6 }}>
+                      <strong>Total pago</strong>
+                      <strong>{moeda(h.total)}</strong>
+                    </div>
+                  </div>
+                </details>
               ))}
-            </ul>
+            </div>
           </details>
         )}
       </section>
