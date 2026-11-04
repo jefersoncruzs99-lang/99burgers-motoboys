@@ -326,6 +326,27 @@ export async function addAjuste(fd: FormData) {
   }, "Ajuste lançado.");
 }
 
+export async function editarAjuste(fd: FormData) {
+  await executar(volta(fd, "/admin/pagamentos"), async () => {
+    const { supabase } = await exigirGestor();
+    const id = uuidOuNulo(fd, "id");
+    const motoboy = uuidOuNulo(fd, "motoboy_id");
+    if (!id || !motoboy) throw new Error("Ajuste inválido.");
+    const bruto = texto(fd, "valor").replace(/\s/g, "").replace(",", ".");
+    const n = Number(bruto);
+    if (!bruto || !Number.isFinite(n) || n === 0) throw new Error("Informe o valor do ajuste.");
+    const valor = texto(fd, "sinal") === "-" ? -Math.abs(n) : Math.abs(n);
+    const { data, error } = await supabase
+      .from("mb_ajustes")
+      .update({ motoboy_id: motoboy, valor, data: dataDoForm(fd), motivo: exigir(texto(fd, "motivo"), "Motivo") })
+      .eq("id", id)
+      .is("pagamento_id", null)
+      .select("id");
+    falhou(error);
+    if (!data?.length) throw new Error("Esse ajuste já foi pago. Desfaça o pagamento para poder corrigir.");
+  }, "Ajuste corrigido.");
+}
+
 export async function removerAjuste(fd: FormData) {
   await executar(volta(fd, "/admin/pagamentos"), async () => {
     const { supabase } = await exigirGestor();

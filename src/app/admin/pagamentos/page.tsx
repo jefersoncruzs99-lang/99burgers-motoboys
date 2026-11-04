@@ -2,7 +2,7 @@ import { Mensagens, type ParamsPagina } from "@/components/Mensagens";
 import { exigirGestor } from "@/lib/auth";
 import { ROTULO_FAIXA, dataComDia, hojeISO, hora, moeda } from "@/lib/datas";
 import { ROTULO_FORMA, ROTULO_TURNO, type FormaPagamento, type Turno } from "@/lib/tipos";
-import { addAjuste, desfazerPagamento, pagar, removerAjuste } from "../actions";
+import { addAjuste, desfazerPagamento, editarAjuste, pagar, removerAjuste } from "../actions";
 
 type Item =
   | { tipo: "turno"; id: string; data: string; turno: Turno; chegada_em: string; faixa: number; valor_diaria: number; valor_entregas: number; qtd_entregas: number }
@@ -29,7 +29,7 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
   const hoje = hojeISO();
   const [{ data: periodos, error }, { data: ajustes }, { data: historico }, { data: motoboys }] = await Promise.all([
     supabase.rpc("mb_a_pagamentos_periodos"),
-    supabase.from("mb_ajustes").select("id, data, valor, motivo, mb_motoboys(nome)").is("pagamento_id", null).order("data"),
+    supabase.from("mb_ajustes").select("id, data, valor, motivo, motoboy_id, mb_motoboys(nome)").is("pagamento_id", null).order("data"),
     supabase
       .from("mb_pagamentos")
       .select("id, data_pagamento, diarias, entregas, ajustes, total, observacao, forma, pago_em, mb_motoboys(nome)")
@@ -193,6 +193,9 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
 
       <section className="cartao pilha">
         <h2>Ajustes (vale, bônus, desconto)</h2>
+        <p className="muted pequeno" style={{ margin: 0 }}>
+          Dá para editar ou remover enquanto não foi pago. Se já foi pago, desfaça o pagamento lá embaixo, corrija e marque pago de novo.
+        </p>
         <form action={addAjuste} className="pilha">
           <div className="campos">
             <div className="campo">
@@ -233,7 +236,7 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
         {(ajustes ?? []).length > 0 && (
           <ul className="pessoas">
             {(ajustes ?? []).map((a) => (
-              <li key={a.id}>
+              <li key={a.id} style={{ flexWrap: "wrap" }}>
                 <span>
                   {dataComDia(a.data)} · <strong>{nomeDe(a.mb_motoboys)}</strong> · {a.motivo}
                 </span>
@@ -244,6 +247,46 @@ export default async function AdminPagamentos({ searchParams }: { searchParams: 
                     <button className="botao">Remover</button>
                   </form>
                 </span>
+                <details style={{ width: "100%" }}>
+                  <summary className="muted pequeno" style={{ cursor: "pointer", textDecoration: "underline" }}>
+                    editar
+                  </summary>
+                  <form action={editarAjuste} className="pilha bloco" style={{ marginTop: 8 }}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <div className="campos">
+                      <div className="campo">
+                        <label>Motoboy</label>
+                        <select name="motoboy_id" required defaultValue={a.motoboy_id}>
+                          {(motoboys ?? []).map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="campo">
+                        <label>Tipo</label>
+                        <select name="sinal" defaultValue={Number(a.valor) < 0 ? "-" : "+"}>
+                          <option value="-">Desconto / vale (−)</option>
+                          <option value="+">Bônus / acréscimo (+)</option>
+                        </select>
+                      </div>
+                      <div className="campo">
+                        <label>Valor R$</label>
+                        <input name="valor" inputMode="decimal" required defaultValue={String(Math.abs(Number(a.valor))).replace(".", ",")} />
+                      </div>
+                      <div className="campo">
+                        <label>Data</label>
+                        <input type="date" name="data" required defaultValue={a.data} />
+                      </div>
+                    </div>
+                    <div className="campo">
+                      <label>Motivo (o motoboy vê)</label>
+                      <input name="motivo" required defaultValue={a.motivo} />
+                    </div>
+                    <button className="botao primario">Salvar correção</button>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>
